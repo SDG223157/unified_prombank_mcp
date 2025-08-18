@@ -1,4 +1,5 @@
 # Multi-stage build for unified Backend + Frontend + MCP Server deployment
+# CACHE_BUST: 2025-08-18-06:30:00 - Force rebuild for Prisma client fix
 FROM node:18-slim AS base
 
 # Install dependencies only when needed
