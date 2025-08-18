@@ -49,9 +49,10 @@ COPY frontend/package.json ./frontend/
 COPY mcp-server/src ./mcp-server/src
 COPY mcp-server/package.json ./mcp-server/
 
-# Generate Prisma client
+# Generate Prisma client for correct platform
 WORKDIR /app/backend
-RUN npx prisma generate
+ENV PRISMA_CLI_BINARY_TARGETS=linux-gnu-openssl-1.1.x
+RUN npx prisma generate --force-generate
 
 # Build frontend
 WORKDIR /app/frontend
