@@ -55,7 +55,7 @@ class Prompt(Base):
     parent_id = Column(String(255), nullable=True)
     user_id = Column(String(255), nullable=False)
     variables = Column(JSON, default=list)
-    metadata = Column(JSON, default=dict)
+    prompt_metadata = Column(JSON, default=dict)
     template_id = Column(String(255), nullable=True)
     word_count = Column(Integer, nullable=True)
     char_count = Column(Integer, nullable=True)
