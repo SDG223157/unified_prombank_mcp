@@ -57,13 +57,20 @@ fi
 
 # Generate Prisma client if needed and run database migrations
 echo "Ensuring Prisma client is generated..."
-cd /app/backend && npx prisma generate --force-generate
+cd /app/backend
+echo "Current directory: $(pwd)"
+echo "Checking if Prisma client exists..."
+ls -la node_modules/.prisma/client/ || echo "Prisma client directory not found"
+echo "Generating Prisma client..."
+npx prisma generate --force-generate
+echo "Verifying Prisma client after generation..."
+ls -la node_modules/.prisma/client/ || echo "Prisma client still not found"
 echo "Running database migrations..."
-cd /app/backend && npx prisma migrate deploy
+npx prisma migrate deploy
 
 # Start the unified backend server (serves API + Frontend)
 echo "Starting unified backend server on port $PORT..."
-cd /app/backend && node src/index.js &
+node src/index.js &
 BACKEND_PID=$!
 
 # Wait a moment for backend to start
