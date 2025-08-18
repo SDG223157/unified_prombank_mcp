@@ -1,4 +1,22 @@
-const { PrismaClient } = require('@prisma/client');
+// Safely import Prisma client with fallback generation
+let PrismaClient;
+try {
+  ({ PrismaClient } = require('@prisma/client'));
+} catch (error) {
+  console.log('❌ Prisma client not found, attempting to generate...');
+  const { execSync } = require('child_process');
+  try {
+    execSync('npx prisma generate --force-generate', { 
+      cwd: __dirname + '/../',
+      stdio: 'inherit'
+    });
+    console.log('✅ Prisma client generated, retrying import...');
+    ({ PrismaClient } = require('@prisma/client'));
+  } catch (genError) {
+    console.error('❌ Failed to generate Prisma client:', genError.message);
+    throw new Error('Prisma client unavailable and generation failed');
+  }
+}
 
 let prisma = null;
 let isConnecting = false;
