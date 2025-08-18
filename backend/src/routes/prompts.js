@@ -445,7 +445,7 @@ router.delete('/:id', authenticateEither, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // Check if prompt exists and user owns it
+    // Check if prompt exists
     const existingPrompt = await prisma.prompt.findUnique({
       where: { id }
     });
@@ -457,10 +457,22 @@ router.delete('/:id', authenticateEither, async (req, res) => {
       });
     }
 
-    if (existingPrompt.userId !== userId) {
+    // Get user info to check admin status
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+
+    // Check authorization: user owns prompt OR (user is admin AND prompt is public)
+    const isOwner = existingPrompt.userId === userId;
+    const isAdminDeletingPublic = user?.isAdmin && existingPrompt.isPublic;
+
+    if (!isOwner && !isAdminDeletingPublic) {
       return res.status(403).json({
         error: 'Access Denied',
-        message: 'You can only delete your own prompts'
+        message: existingPrompt.isPublic 
+          ? 'Only admins can delete public prompts that are not their own'
+          : 'You can only delete your own prompts'
       });
     }
 

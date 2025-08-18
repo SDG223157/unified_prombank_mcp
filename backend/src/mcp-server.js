@@ -506,7 +506,7 @@ class PromptHouseMCPServer {
   async deletePrompt(args) {
     const { promptId, userId } = args;
 
-    // Check if prompt exists and user owns it
+    // Check if prompt exists
     const existingPrompt = await prisma.prompt.findUnique({
       where: { id: promptId }
     });
@@ -515,8 +515,21 @@ class PromptHouseMCPServer {
       throw new Error(`Prompt with ID ${promptId} not found`);
     }
 
-    if (existingPrompt.userId !== userId) {
-      throw new Error('You can only delete your own prompts');
+    // Get user info to check admin status
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+
+    // Check authorization: user owns prompt OR (user is admin AND prompt is public)
+    const isOwner = existingPrompt.userId === userId;
+    const isAdminDeletingPublic = user?.isAdmin && existingPrompt.isPublic;
+
+    if (!isOwner && !isAdminDeletingPublic) {
+      const errorMessage = existingPrompt.isPublic 
+        ? 'Only admins can delete public prompts that are not their own'
+        : 'You can only delete your own prompts';
+      throw new Error(errorMessage);
     }
 
     await prisma.prompt.delete({

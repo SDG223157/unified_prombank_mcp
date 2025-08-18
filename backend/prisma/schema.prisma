@@ -24,6 +24,7 @@ model User {
   authProvider    String   @default("local") @map("auth_provider") // "local", "google"
   subscriptionTier String  @default("free") @map("subscription_tier") // "free", "premium", "enterprise"
   isActive        Boolean  @default(true) @map("is_active")
+  isAdmin         Boolean  @default(false) @map("is_admin") // Global admin role
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

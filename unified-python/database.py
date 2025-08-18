@@ -38,6 +38,7 @@ class User(Base):
     auth_provider = Column(String(50), default="local")
     subscription_tier = Column(String(50), default="free")
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
