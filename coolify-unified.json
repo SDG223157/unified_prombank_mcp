@@ -1,0 +1,145 @@
+{
+  "name": "prompt-house-premium-unified",
+  "description": "Unified deployment of Prompt House Premium with Backend, Frontend, and MCP Server",
+  "version": "1.0.0",
+  "type": "docker-compose",
+  "compose_file": "docker-compose.unified.yml",
+  "dockerfile": "Dockerfile.unified",
+  "build_context": ".",
+  "port": 3000,
+  "healthcheck": {
+    "endpoint": "/health",
+    "interval": "30s",
+    "timeout": "10s",
+    "retries": 3,
+    "start_period": "60s"
+  },
+  "environment_variables": {
+    "required": [
+      "DATABASE_URL",
+      "JWT_SECRET", 
+      "SESSION_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_CALLBACK_URL",
+      "ALLOWED_ORIGINS",
+      "FRONTEND_URL",
+      "BACKEND_URL",
+      "NEXT_PUBLIC_API_URL"
+    ],
+    "optional": [
+      "PROMPTHOUSE_ACCESS_TOKEN",
+      "RATE_LIMIT_MAX_REQUESTS",
+      "RATE_LIMIT_WINDOW_MS",
+      "DATABASE_RETRY_ATTEMPTS",
+      "DATABASE_RETRY_DELAY",
+      "STARTUP_DELAY"
+    ],
+    "defaults": {
+      "NODE_ENV": "production",
+      "PORT": "3000",
+      "TRUST_PROXY": "true",
+      "SESSION_COOKIE_SECURE": "true",
+      "SESSION_COOKIE_HTTPONLY": "true",
+      "RATE_LIMIT_MAX_REQUESTS": "100",
+      "RATE_LIMIT_WINDOW_MS": "900000",
+      "PRISMA_CONNECTION_LIMIT": "10",
+      "DATABASE_RETRY_ATTEMPTS": "12",
+      "DATABASE_RETRY_DELAY": "5000",
+      "DB_CONNECTION_TIMEOUT": "60000",
+      "STARTUP_DELAY": "30"
+    }
+  },
+  "services": {
+    "mysql": {
+      "image": "mysql:8",
+      "environment": {
+        "MYSQL_ROOT_PASSWORD": "rAfbZgINjUNdHCPYJr8TpX27fN8EnjaFrse0wBsrSgyJ3MT198qmk7ePmmNyshpH",
+        "MYSQL_DATABASE": "default",
+        "MYSQL_USER": "mysql",
+        "MYSQL_PASSWORD": "rAfbZgINjUNdHCPYJr8TpX27fN8EnjaFrse0wBsrSgyJ3MT198qmk7ePmmNyshpH"
+      },
+      "volumes": ["mysql_data:/var/lib/mysql"],
+      "healthcheck": {
+        "test": ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "mysql", "-prAfbZgINjUNdHCPYJr8TpX27fN8EnjaFrse0wBsrSgyJ3MT198qmk7ePmmNyshpH"],
+        "interval": "10s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "30s"
+      }
+    },
+    "app": {
+      "build": {
+        "context": ".",
+        "dockerfile": "Dockerfile.unified"
+      },
+      "depends_on": ["mysql"],
+      "restart": "unless-stopped",
+      "resources": {
+        "limits": {
+          "memory": "2G"
+        },
+        "reservations": {
+          "memory": "1G"
+        }
+      }
+    }
+  },
+  "volumes": {
+    "mysql_data": {
+      "driver": "local"
+    }
+  },
+  "networks": {
+    "app-network": {
+      "driver": "bridge"
+    }
+  },
+  "deployment": {
+    "strategy": "rolling",
+    "max_replicas": 1,
+    "health_check_grace_period": "60s",
+    "pre_deploy_commands": [
+      "cd backend && npx prisma migrate deploy"
+    ],
+    "post_deploy_commands": [
+      "curl -f http://localhost:3000/health || exit 1"
+    ]
+  },
+  "monitoring": {
+    "endpoints": [
+      {
+        "name": "health",
+        "path": "/health",
+        "expected_status": 200
+      },
+      {
+        "name": "api",
+        "path": "/api/prompts",
+        "expected_status": [200, 401]
+      }
+    ],
+    "logs": {
+      "retention_days": 7,
+      "max_size": "100MB"
+    }
+  },
+  "backup": {
+    "database": {
+      "enabled": true,
+      "schedule": "0 2 * * *",
+      "retention_days": 30
+    }
+  },
+  "security": {
+    "ssl_required": true,
+    "cors_enabled": true,
+    "rate_limiting": true,
+    "oauth_providers": ["google"]
+  },
+  "documentation": {
+    "readme": "UNIFIED_DEPLOYMENT_GUIDE.md",
+    "api_docs": "/api/docs",
+    "health_check": "/health"
+  }
+}

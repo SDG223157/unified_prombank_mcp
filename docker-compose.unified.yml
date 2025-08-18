@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8
+    container_name: prompthouse-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secure-root-password-change-me}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-default}
+      MYSQL_USER: ${MYSQL_USER:-mysql}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secure-mysql-password-change-me}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER:-mysql}", "-p${MYSQL_PASSWORD:-secure-mysql-password-change-me}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Unified Backend + Frontend + MCP Server Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile.unified
+    container_name: prompthouse-unified-app
+    environment:
+      # Database Configuration
+      DATABASE_URL: mysql://${MYSQL_USER:-mysql}:${MYSQL_PASSWORD:-secure-mysql-password-change-me}@mysql:3306/${MYSQL_DATABASE:-default}
+      DATABASE_RETRY_ATTEMPTS: 12
+      DATABASE_RETRY_DELAY: 5000
+      DB_CONNECTION_TIMEOUT: 60000
+      STARTUP_DELAY: 30
+      DB_HOST: mysql
+      DB_USER: ${MYSQL_USER:-mysql}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-secure-mysql-password-change-me}
+      
+      # Application Configuration
+      NODE_ENV: production
+      PORT: 3000
+      TRUST_PROXY: "true"
+      
+      # Authentication & Security
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_COOKIE_SECURE: "true"
+      SESSION_COOKIE_HTTPONLY: "true"
+      
+      # CORS & URLs
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://yourdomain.com}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://yourdomain.com}
+      FRONTEND_URL: ${FRONTEND_URL:-https://yourdomain.com}
+      BACKEND_URL: ${BACKEND_URL:-https://yourdomain.com}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://yourdomain.com/api}
+      
+      # Rate Limiting
+      RATE_LIMIT_MAX_REQUESTS: 100
+      RATE_LIMIT_WINDOW_MS: 900000
+      
+      # Prisma Configuration
+      PRISMA_CONNECTION_LIMIT: 10
+      
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-https://yourdomain.com/api/auth/google/callback}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://yourdomain.com/api/auth/google/callback}
+      
+      # MCP Server Configuration (optional)
+      PROMPTHOUSE_API_URL: http://localhost:3000
+      PROMPTHOUSE_ACCESS_TOKEN: ${PROMPTHOUSE_ACCESS_TOKEN:-}
+      
+    ports:
+      - "3000:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    name: prompthouse-network
+
+

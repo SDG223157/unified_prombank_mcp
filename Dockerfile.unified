@@ -1,0 +1,98 @@
+# Multi-stage build for unified Backend + Frontend + MCP Server deployment
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy all package files
+COPY package.json package-lock.json* ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+COPY mcp-server/package.json ./mcp-server/
+
+# Install all dependencies
+RUN npm ci
+RUN cd backend && npm ci
+RUN cd frontend && npm ci  
+RUN cd mcp-server && npm ci
+
+# Build stage
+FROM base AS builder
+WORKDIR /app
+
+# Copy dependencies
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
+COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
+COPY --from=deps /app/mcp-server/node_modules ./mcp-server/node_modules
+
+# Copy configuration files
+COPY next.config.js postcss.config.js tailwind.config.js tsconfig.json next-env.d.ts ./
+COPY tsconfig.mcp.json ./
+
+# Copy source code
+COPY backend/src ./backend/src
+COPY backend/prisma ./backend/prisma
+COPY frontend/src ./frontend/src
+COPY frontend/public ./frontend/public
+COPY mcp-server/src ./mcp-server/src
+
+# Generate Prisma client
+WORKDIR /app/backend
+RUN npx prisma generate
+
+# Build frontend
+WORKDIR /app/frontend
+ENV NEXT_PUBLIC_API_URL=https://prombank.app/api
+RUN npm run build
+
+# Build MCP server
+WORKDIR /app/mcp-server
+RUN npm run build
+
+# Production image
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Install dumb-init and mysql client for health checks
+RUN apk add --no-cache dumb-init mysql-client
+
+# Create app user
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy backend source and dependencies
+COPY --from=builder --chown=nextjs:nodejs /app/backend/src ./backend/src
+COPY --from=builder --chown=nextjs:nodejs /app/backend/node_modules ./backend/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/backend/prisma ./backend/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/backend/package.json ./backend/
+
+# Copy built frontend
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next ./frontend/.next
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/public ./frontend/public
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/package.json ./frontend/
+
+# Copy built MCP server
+COPY --from=builder --chown=nextjs:nodejs /app/mcp-server/dist ./mcp-server/dist
+COPY --from=builder --chown=nextjs:nodejs /app/mcp-server/node_modules ./mcp-server/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/mcp-server/package.json ./mcp-server/
+
+# Copy unified startup script
+COPY --chown=nextjs:nodejs startup.sh ./startup.sh
+RUN chmod +x ./startup.sh
+
+# Set proper permissions
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Use startup script to run all services
+CMD ["dumb-init", "./startup.sh"]
