@@ -4,7 +4,7 @@ FROM node:18-slim AS base
 # Install dependencies only when needed
 FROM base AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ libssl1.1 ca-certificates \
+    python3 make g++ libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -26,7 +26,7 @@ COPY package.json ./
 # Build stage
 FROM base AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ libssl1.1 ca-certificates \
+    python3 make g++ libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -76,7 +76,7 @@ ENV NODE_ENV=production
 
 # Install runtime dependencies for Debian
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    dumb-init mysql-client netcat-traditional libssl1.1 ca-certificates \
+    dumb-init default-mysql-client netcat-traditional libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user
