@@ -21,8 +21,18 @@ RETRY_COUNT=0
 MAX_RETRIES=${DATABASE_RETRY_ATTEMPTS:-12}
 RETRY_DELAY=${DATABASE_RETRY_DELAY:-5000}
 
+# Extract database connection details from DATABASE_URL
+DB_HOST_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+DB_PORT_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+DB_USER_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+DB_PASS_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+DB_NAME_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+
+echo "Connecting to database: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
+
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if mysqladmin ping -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}" --silent; then
+    # Try using mysql command directly with extracted credentials
+    if mysql -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" >/dev/null 2>&1; then
         echo "Database connection established"
         break
     fi
@@ -34,6 +44,7 @@ done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo "Failed to connect to database after $MAX_RETRIES attempts"
+    echo "Database URL: mysql://${DB_USER_EXTRACTED}:****@${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}/${DB_NAME_EXTRACTED}"
     exit 1
 fi
 
