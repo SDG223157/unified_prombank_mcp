@@ -31,8 +31,8 @@ DB_NAME_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
 echo "Connecting to database: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    # Try using mysql command directly with extracted credentials
-    CONNECTION_ERROR=$(mysql -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" 2>&1)
+    # Try using mysql command directly with extracted credentials (disable SSL verification)
+    CONNECTION_ERROR=$(mysql --ssl-mode=DISABLED -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" 2>&1)
     if [ $? -eq 0 ]; then
         echo "Database connection established"
         break
