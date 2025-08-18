@@ -6,8 +6,9 @@ This guide explains how to set up admin users and understand the admin permissio
 
 The admin role allows users to:
 - Delete public prompts created by other users
-- Regular users can only delete their own prompts
-- Private prompts can only be deleted by their owners (even admins cannot delete private prompts they don't own)
+- Update public prompts created by other users
+- Regular users can only delete/update their own prompts
+- Private prompts can only be deleted/updated by their owners (even admins cannot delete/update private prompts they don't own)
 
 ## Setting Up Admin Users
 
@@ -46,18 +47,20 @@ The migration file `backend/prisma/migrations/20250819074307_add_admin_role/migr
 
 ## Admin Permissions
 
-### Prompt Deletion Rules
+### Prompt Management Rules
 
 | Prompt Type | Owner | Admin (Non-Owner) | Regular User (Non-Owner) |
 |-------------|-------|-------------------|--------------------------|
-| Private     | ✅ Can delete | ❌ Cannot delete | ❌ Cannot delete |
-| Public      | ✅ Can delete | ✅ Can delete | ❌ Cannot delete |
+| Private     | ✅ Can delete/update | ❌ Cannot delete/update | ❌ Cannot delete/update |
+| Public      | ✅ Can delete/update | ✅ Can delete/update | ❌ Cannot delete/update |
 
 ### API Endpoints Affected
 
 - `DELETE /api/prompts/:id` - Node.js backend
 - `DELETE /api/prompts/{prompt_id}` - Python backend
-- MCP server deletion functions
+- `PUT /api/prompts/:id` - Node.js backend
+- `PUT /api/prompts/{prompt_id}` - Python backend
+- MCP server deletion and update functions
 
 ## Current Admin User
 
@@ -89,18 +92,18 @@ WHERE email = 'isky999@gmail.com';
 
 ## Error Messages
 
-When non-admin users try to delete public prompts they don't own:
-- **Node.js**: "Only admins can delete public prompts that are not their own"
-- **Python**: "Only admins can delete public prompts that are not their own"
-- **MCP**: "Only admins can delete public prompts that are not their own"
+When non-admin users try to delete/update public prompts they don't own:
+- **Node.js**: "Only admins can delete/update public prompts that are not their own"
+- **Python**: "Only admins can delete/update public prompts that are not their own"
+- **MCP**: "Only admins can delete/update public prompts that are not their own"
 
-When users try to delete private prompts they don't own:
-- **All backends**: "You can only delete your own prompts"
+When users try to delete/update private prompts they don't own:
+- **All backends**: "You can only delete/update your own prompts"
 
 ## Security Considerations
 
 1. **Admin privileges are powerful** - Only trusted users should be given admin status
-2. **Private prompts remain protected** - Even admins cannot delete private prompts they don't own
+2. **Private prompts remain protected** - Even admins cannot delete/update private prompts they don't own
 3. **Audit logging** - Consider implementing audit logs for admin actions
 4. **Regular review** - Periodically review who has admin access
 

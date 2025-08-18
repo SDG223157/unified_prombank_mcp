@@ -198,13 +198,21 @@ async def get_prompt(prompt_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.put("/api/prompts/{prompt_id}")
-async def update_prompt(prompt_id: str, request: Request, db: Session = Depends(get_db)):
+async def update_prompt(prompt_id: str, request: Request, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Update a specific prompt"""
     try:
         prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
         
         if not prompt:
             raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        # Check authorization: user owns prompt OR (user is admin AND prompt is public)
+        is_owner = prompt.user_id == current_user.id
+        is_admin_updating_public = current_user.is_admin and prompt.is_public
+        
+        if not is_owner and not is_admin_updating_public:
+            error_message = "Only admins can update public prompts that are not their own" if prompt.is_public else "You can only update your own prompts"
+            raise HTTPException(status_code=403, detail=error_message)
         
         data = await request.json()
         

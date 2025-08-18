@@ -439,7 +439,7 @@ class PromptHouseMCPServer {
   async updatePrompt(args) {
     const { promptId, userId, ...updates } = args;
 
-    // Check if prompt exists and user owns it
+    // Check if prompt exists
     const existingPrompt = await prisma.prompt.findUnique({
       where: { id: promptId }
     });
@@ -448,8 +448,21 @@ class PromptHouseMCPServer {
       throw new Error(`Prompt with ID ${promptId} not found`);
     }
 
-    if (existingPrompt.userId !== userId) {
-      throw new Error('You can only update your own prompts');
+    // Get user info to check admin status
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+
+    // Check authorization: user owns prompt OR (user is admin AND prompt is public)
+    const isOwner = existingPrompt.userId === userId;
+    const isAdminUpdatingPublic = user?.isAdmin && existingPrompt.isPublic;
+
+    if (!isOwner && !isAdminUpdatingPublic) {
+      const errorMessage = existingPrompt.isPublic 
+        ? 'Only admins can update public prompts that are not their own'
+        : 'You can only update your own prompts';
+      throw new Error(errorMessage);
     }
 
     // Process updates

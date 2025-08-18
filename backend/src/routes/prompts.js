@@ -383,7 +383,7 @@ router.put('/:id', authenticateEither, updatePromptValidation, async (req, res) 
     const userId = req.user.id;
     const updates = req.body;
 
-    // Check if prompt exists and user owns it
+    // Check if prompt exists
     const existingPrompt = await prisma.prompt.findUnique({
       where: { id }
     });
@@ -395,10 +395,22 @@ router.put('/:id', authenticateEither, updatePromptValidation, async (req, res) 
       });
     }
 
-    if (existingPrompt.userId !== userId) {
+    // Get user info to check admin status
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true }
+    });
+
+    // Check authorization: user owns prompt OR (user is admin AND prompt is public)
+    const isOwner = existingPrompt.userId === userId;
+    const isAdminUpdatingPublic = user?.isAdmin && existingPrompt.isPublic;
+
+    if (!isOwner && !isAdminUpdatingPublic) {
       return res.status(403).json({
         error: 'Access Denied',
-        message: 'You can only update your own prompts'
+        message: existingPrompt.isPublic 
+          ? 'Only admins can update public prompts that are not their own'
+          : 'You can only update your own prompts'
       });
     }
 
