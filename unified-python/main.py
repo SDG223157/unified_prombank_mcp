@@ -10,8 +10,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
-from database import get_db, connect_with_retry, create_tables, User, Prompt
-from auth import setup_oauth, create_access_token, get_current_user, require_auth, create_or_update_user_from_google
+from database import get_db, connect_with_retry, create_tables, User, Prompt, Token
+from auth import setup_oauth, create_access_token, get_current_user, require_auth, create_or_update_user_from_google, generate_api_token, hash_token, get_current_user_or_token
 import uuid
 import httpx
 
@@ -385,6 +385,218 @@ async def auth_status(request: Request, current_user: User = Depends(get_current
     else:
         return {"authenticated": False}
 
+# Token Management API Endpoints
+@app.get("/api/tokens")
+async def get_tokens(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Get all API tokens for the current user"""
+    try:
+        tokens = db.query(Token).filter(Token.user_id == current_user.id).all()
+        
+        return {
+            "tokens": [
+                {
+                    "id": token.id,
+                    "name": token.name,
+                    "description": token.description,
+                    "is_active": token.is_active,
+                    "last_used_at": token.last_used_at.isoformat() if token.last_used_at else None,
+                    "usage_count": token.usage_count,
+                    "permissions": token.permissions or [],
+                    "expires_at": token.expires_at.isoformat() if token.expires_at else None,
+                    "created_at": token.created_at.isoformat() if token.created_at else None
+                }
+                for token in tokens
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error getting tokens: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/tokens")
+async def create_token(request: Request, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Create a new API token"""
+    try:
+        data = await request.json()
+        
+        # Generate the actual token
+        raw_token = generate_api_token()
+        token_hash = hash_token(raw_token)
+        
+        # Create token record
+        token = Token(
+            id=str(uuid.uuid4()),
+            name=data.get('name', 'MCP Token'),
+            description=data.get('description', ''),
+            token_hash=token_hash,
+            user_id=current_user.id,
+            permissions=data.get('permissions', ['read', 'write']),
+            expires_at=None  # No expiration by default
+        )
+        
+        db.add(token)
+        db.commit()
+        db.refresh(token)
+        
+        return {
+            "id": token.id,
+            "name": token.name,
+            "description": token.description,
+            "token": raw_token,  # Only returned once during creation
+            "permissions": token.permissions,
+            "created_at": token.created_at.isoformat(),
+            "message": "Token created successfully. Save this token - it won't be shown again!"
+        }
+    except Exception as e:
+        logger.error(f"Error creating token: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/api/tokens/{token_id}")
+async def update_token(token_id: str, request: Request, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Update an API token (name, description, status)"""
+    try:
+        token = db.query(Token).filter(
+            Token.id == token_id,
+            Token.user_id == current_user.id
+        ).first()
+        
+        if not token:
+            raise HTTPException(status_code=404, detail="Token not found")
+        
+        data = await request.json()
+        
+        # Update fields
+        if 'name' in data:
+            token.name = data['name']
+        if 'description' in data:
+            token.description = data['description']
+        if 'is_active' in data:
+            token.is_active = data['is_active']
+        if 'permissions' in data:
+            token.permissions = data['permissions']
+        
+        from datetime import datetime
+        token.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(token)
+        
+        return {
+            "id": token.id,
+            "name": token.name,
+            "description": token.description,
+            "is_active": token.is_active,
+            "permissions": token.permissions,
+            "updated_at": token.updated_at.isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating token: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/api/tokens/{token_id}")
+async def delete_token(token_id: str, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Delete an API token"""
+    try:
+        token = db.query(Token).filter(
+            Token.id == token_id,
+            Token.user_id == current_user.id
+        ).first()
+        
+        if not token:
+            raise HTTPException(status_code=404, detail="Token not found")
+        
+        db.delete(token)
+        db.commit()
+        
+        return {"message": "Token deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting token: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# MCP API Endpoints (for Cursor integration)
+@app.get("/api/mcp/prompts")
+async def mcp_get_prompts(request: Request, db: Session = Depends(get_db)):
+    """MCP endpoint to get prompts (requires API token)"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="API token required")
+    
+    try:
+        # Get prompts accessible to this user (public + user's own)
+        prompts = db.query(Prompt).filter(
+            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+        ).limit(50).all()
+        
+        return {
+            "prompts": [
+                {
+                    "name": prompt.title,
+                    "description": prompt.description or "",
+                    "arguments": [
+                        {
+                            "name": var,
+                            "description": f"Variable: {var}",
+                            "required": True
+                        }
+                        for var in (prompt.variables or [])
+                    ]
+                }
+                for prompt in prompts
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error getting MCP prompts: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/mcp/prompts/{prompt_name}")
+async def mcp_get_prompt(prompt_name: str, request: Request, db: Session = Depends(get_db)):
+    """MCP endpoint to get a specific prompt by name"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="API token required")
+    
+    try:
+        # Find prompt by title (case insensitive)
+        prompt = db.query(Prompt).filter(
+            Prompt.title.ilike(f"%{prompt_name}%"),
+            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+        ).first()
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        # Get arguments from request
+        data = await request.json() if request.method == "POST" else {}
+        arguments = data.get("arguments", {})
+        
+        # Replace variables in prompt content
+        content = prompt.content
+        for var, value in arguments.items():
+            content = content.replace(f"{{{var}}}", str(value))
+        
+        return {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": content
+                    }
+                }
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting MCP prompt: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 # Frontend routes
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend(request: Request):
@@ -435,6 +647,14 @@ async def serve_edit_prompt(request: Request, prompt_id: str):
         "request": request,
         "title": "Edit Prompt - Prompt House Premium",
         "prompt_id": prompt_id
+    })
+
+@app.get("/tokens", response_class=HTMLResponse)
+async def serve_tokens(request: Request):
+    """Serve the tokens management page"""
+    return templates.TemplateResponse("tokens.html", {
+        "request": request,
+        "title": "API Tokens - Prompt House Premium"
     })
 
 # Startup event

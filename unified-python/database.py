@@ -63,6 +63,22 @@ class Prompt(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Token(Base):
+    __tablename__ = "tokens"
+    
+    id = Column(String(255), primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    token_hash = Column(String(255), nullable=False)  # Hashed version of the token
+    user_id = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    last_used_at = Column(DateTime, nullable=True)
+    usage_count = Column(Integer, default=0)
+    permissions = Column(JSON, default=list)  # List of permissions like ['read', 'write']
+    expires_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 def get_db():
     db = SessionLocal()
     try:

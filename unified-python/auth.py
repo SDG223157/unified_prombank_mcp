@@ -8,8 +8,10 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
-from database import get_db, User
+from database import get_db, User, Token
 import httpx
+import secrets
+import hashlib
 
 # JWT Configuration
 JWT_SECRET = os.getenv('JWT_SECRET')
@@ -132,3 +134,48 @@ async def create_or_update_user_from_google(google_user_info: dict, db: Session)
         db.commit()
         db.refresh(new_user)
         return new_user
+
+def generate_api_token() -> str:
+    """Generate a secure API token"""
+    return secrets.token_urlsafe(32)
+
+def hash_token(token: str) -> str:
+    """Hash a token for secure storage"""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def verify_api_token(token: str, db: Session) -> Optional[User]:
+    """Verify API token and return associated user"""
+    if not token:
+        return None
+    
+    token_hash = hash_token(token)
+    token_record = db.query(Token).filter(
+        Token.token_hash == token_hash,
+        Token.is_active == True
+    ).first()
+    
+    if not token_record:
+        return None
+    
+    # Update last used timestamp and usage count
+    token_record.last_used_at = datetime.utcnow()
+    token_record.usage_count += 1
+    db.commit()
+    
+    # Get the user
+    user = db.query(User).filter(User.id == token_record.user_id).first()
+    return user
+
+def get_current_user_or_token(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
+    """Get current user from session, JWT token, or API token"""
+    # Try session first
+    user = get_current_user(request, db)
+    if user:
+        return user
+    
+    # Try API token from header
+    api_token = request.headers.get('X-API-Token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    if api_token:
+        return verify_api_token(api_token, db)
+    
+    return None
