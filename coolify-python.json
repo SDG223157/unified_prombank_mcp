@@ -1,0 +1,84 @@
+{
+  "name": "prompt-house-premium-python",
+  "description": "Unified Python deployment of Prompt House Premium with FastAPI backend and HTML frontend",
+  "version": "1.0.0",
+  "type": "dockerfile",
+  "dockerfile": "Dockerfile.unified-python",
+  "build_context": ".",
+  "port": 3000,
+  "healthcheck": {
+    "endpoint": "/health",
+    "interval": "30s",
+    "timeout": "10s",
+    "retries": 3,
+    "start_period": "60s"
+  },
+  "environment_variables": {
+    "required": [
+      "DATABASE_URL",
+      "JWT_SECRET", 
+      "SESSION_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_CALLBACK_URL",
+      "ALLOWED_ORIGINS",
+      "FRONTEND_URL",
+      "BACKEND_URL"
+    ],
+    "optional": [
+      "RATE_LIMIT_MAX_REQUESTS",
+      "RATE_LIMIT_WINDOW_MS",
+      "DATABASE_RETRY_ATTEMPTS",
+      "DATABASE_RETRY_DELAY",
+      "STARTUP_DELAY"
+    ],
+    "defaults": {
+      "PORT": "3000",
+      "TRUST_PROXY": "true",
+      "RATE_LIMIT_MAX_REQUESTS": "100",
+      "RATE_LIMIT_WINDOW_MS": "900000",
+      "DATABASE_RETRY_ATTEMPTS": "12",
+      "DATABASE_RETRY_DELAY": "5000",
+      "STARTUP_DELAY": "30"
+    }
+  },
+  "deployment": {
+    "strategy": "rolling",
+    "max_replicas": 1,
+    "health_check_grace_period": "60s"
+  },
+  "monitoring": {
+    "endpoints": [
+      {
+        "name": "health",
+        "path": "/health",
+        "expected_status": 200
+      },
+      {
+        "name": "api",
+        "path": "/api/prompts",
+        "expected_status": [200, 401]
+      },
+      {
+        "name": "frontend",
+        "path": "/",
+        "expected_status": 200
+      }
+    ],
+    "logs": {
+      "retention_days": 7,
+      "max_size": "100MB"
+    }
+  },
+  "security": {
+    "ssl_required": true,
+    "cors_enabled": true,
+    "rate_limiting": true,
+    "oauth_providers": ["google"]
+  },
+  "documentation": {
+    "readme": "Python FastAPI unified deployment",
+    "api_docs": "/docs",
+    "health_check": "/health"
+  }
+}

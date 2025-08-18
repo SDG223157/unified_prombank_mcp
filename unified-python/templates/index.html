@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <!-- Hero Section -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow-xl p-8 text-white mb-8">
+        <div class="max-w-3xl">
+            <h1 class="text-4xl font-bold mb-4">
+                Welcome to Prompt House Premium
+            </h1>
+            <p class="text-xl mb-6">
+                The ultimate platform for managing, sharing, and optimizing AI prompts. 
+                Built with Python FastAPI for maximum reliability.
+            </p>
+            <div class="flex space-x-4">
+                <a href="/dashboard" class="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
+                    Get Started
+                </a>
+                <a href="/prompts" class="border border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition">
+                    Browse Prompts
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="text-blue-500 text-3xl mb-4">
+                <i class="fas fa-edit"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Advanced Editor</h3>
+            <p class="text-gray-600">Rich text editor with syntax highlighting and prompt variables.</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="text-green-500 text-3xl mb-4">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Team Collaboration</h3>
+            <p class="text-gray-600">Share prompts with your team and collaborate effectively.</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="text-purple-500 text-3xl mb-4">
+                <i class="fas fa-search"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Smart Search</h3>
+            <p class="text-gray-600">Find the perfect prompt with our powerful search capabilities.</p>
+        </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-2xl font-bold mb-4">System Status</h2>
+        <div id="status-info" x-data="statusData()" x-init="checkStatus()">
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="flex items-center space-x-3">
+                    <div :class="status.database === 'connected' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" 
+                         class="px-3 py-1 rounded-full text-sm font-medium">
+                        <span x-text="status.database === 'connected' ? '✅ Database Connected' : '❌ Database Disconnected'"></span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                        ✅ Python Backend Running
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-sm text-gray-600">
+                <p>Backend: <span x-text="status.backend || 'python-fastapi'"></span></p>
+                <p>Version: <span x-text="status.version || '1.0.0'"></span></p>
+                <p>Last checked: <span x-text="new Date().toLocaleString()"></span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function statusData() {
+    return {
+        status: {
+            database: 'checking',
+            backend: 'python-fastapi',
+            version: '1.0.0'
+        },
+        async checkStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                this.status = data;
+            } catch (error) {
+                console.error('Health check failed:', error);
+                this.status.database = 'disconnected';
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p class="text-gray-600 mt-2">Manage your prompts and account settings</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="text-blue-500 text-2xl mr-4">
+                    <i class="fas fa-file-text"></i>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold">0</p>
+                    <p class="text-gray-600">Total Prompts</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="text-green-500 text-2xl mr-4">
+                    <i class="fas fa-share"></i>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold">0</p>
+                    <p class="text-gray-600">Shared Prompts</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="text-purple-500 text-2xl mr-4">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold">0</p>
+                    <p class="text-gray-600">Team Members</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow">
+            <div class="flex items-center">
+                <div class="text-orange-500 text-2xl mr-4">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold">0</p>
+                    <p class="text-gray-600">API Calls</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Prompts -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold">Recent Prompts</h2>
+        </div>
+        <div class="p-6">
+            <div id="prompts-list" x-data="promptsData()" x-init="loadPrompts()">
+                <div x-show="loading" class="text-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    <p class="mt-2 text-gray-600">Loading prompts...</p>
+                </div>
+                
+                <div x-show="!loading && prompts.length === 0" class="text-center py-8">
+                    <div class="text-gray-400 text-4xl mb-4">
+                        <i class="fas fa-file-plus"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No prompts yet</h3>
+                    <p class="text-gray-600 mb-4">Create your first prompt to get started</p>
+                    <a href="/prompts/create" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Create Prompt
+                    </a>
+                </div>
+                
+                <div x-show="!loading && prompts.length > 0" class="space-y-4">
+                    <template x-for="prompt in prompts" :key="prompt.id">
+                        <div class="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition">
+                            <h3 class="font-semibold text-gray-900" x-text="prompt.title"></h3>
+                            <p class="text-gray-600 mt-1" x-text="prompt.description"></p>
+                            <div class="mt-2 flex items-center justify-between">
+                                <span class="text-sm text-gray-500" x-text="prompt.category"></span>
+                                <span class="text-sm text-gray-500" x-text="new Date(prompt.created_at).toLocaleDateString()"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function promptsData() {
+    return {
+        prompts: [],
+        loading: true,
+        async loadPrompts() {
+            try {
+                const response = await fetch('/api/prompts');
+                const data = await response.json();
+                this.prompts = data.prompts || [];
+            } catch (error) {
+                console.error('Error loading prompts:', error);
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}
