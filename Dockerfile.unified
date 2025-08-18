@@ -30,11 +30,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Copy dependencies (only the ones that exist)
-COPY --from=deps /app/backend/node_modules ./backend/node_modules
-COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
-COPY --from=deps /app/mcp-server/node_modules ./mcp-server/node_modules
-
 # Copy configuration files from frontend directory
 COPY frontend/next.config.js frontend/postcss.config.js frontend/tailwind.config.js frontend/tsconfig.json frontend/next-env.d.ts ./frontend/
 COPY mcp-server/tsconfig.json ./mcp-server/
@@ -49,7 +44,12 @@ COPY frontend/package.json ./frontend/
 COPY mcp-server/src ./mcp-server/src
 COPY mcp-server/package.json ./mcp-server/
 
-# Generate Prisma client for correct platform
+# Copy dependencies (only the ones that exist)
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
+COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
+COPY --from=deps /app/mcp-server/node_modules ./mcp-server/node_modules
+
+# Generate Prisma client for correct platform AFTER copying node_modules
 WORKDIR /app/backend
 # Clear any cached Prisma client and force regeneration for Debian
 RUN rm -rf node_modules/.prisma node_modules/@prisma/client/libquery_engine-* || true
