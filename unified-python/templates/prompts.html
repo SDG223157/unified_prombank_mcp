@@ -1,49 +1,95 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
 <div class="px-4 py-6 sm:px-0">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-gray-900">Prompts</h1>
         <p class="text-gray-600 mt-2">Discover and manage AI prompts</p>
     </div>
 
-    <!-- Actions Bar -->
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex space-x-4">
-            <input type="text" placeholder="Search prompts..." 
-                   class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option>All Categories</option>
-                <option>Development</option>
-                <option>Writing</option>
-                <option>Marketing</option>
-            </select>
-        </div>
-        <a href="/prompts/create" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition">
-            <i class="fas fa-plus mr-2"></i>
-            New Prompt
-        </a>
-    </div>
+    <!-- Prompts Display with Controls -->
+    <div id="prompts-display" x-data="promptsDisplayData()" x-init="init(); loadPrompts()">
+        <!-- Actions Bar -->
+        <div class="flex flex-col space-y-4 mb-6">
+            <div class="flex justify-between items-center">
+                <div class="flex space-x-4">
+                    <input type="text" placeholder="Search prompts..." 
+                           class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option>All Categories</option>
+                        <option>Development</option>
+                        <option>Writing</option>
+                        <option>Marketing</option>
+                    </select>
+                </div>
+                <a href="/prompts/create" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition">
+                    <i class="fas fa-plus mr-2"></i>
+                    New Prompt
+                </a>
+            </div>
 
-    <!-- Prompts Grid -->
-    <div id="prompts-grid" x-data="promptsGridData()" x-init="loadPrompts()">
+            <!-- View Mode Toggle -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
+                    <button @click="viewMode = 'grid'" 
+                            :class="viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                            class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                            title="Grid View">
+                        <i class="fas fa-th text-sm"></i>
+                    </button>
+                    <button @click="viewMode = 'list'" 
+                            :class="viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                            class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                            title="List View">
+                        <i class="fas fa-list text-sm"></i>
+                    </button>
+                    <button @click="viewMode = 'table'" 
+                            :class="viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                            class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                            title="Table View">
+                        <i class="fas fa-table text-sm"></i>
+                    </button>
+                </div>
+                
+                <div class="text-sm text-gray-500">
+                    <span x-text="prompts.length"></span> prompt<span x-text="prompts.length !== 1 ? 's' : ''"></span>
+                </div>
+            </div>
+        </div>
+        <!-- Loading State -->
         <div x-show="loading" class="text-center py-12">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
             <p class="mt-4 text-gray-600">Loading prompts...</p>
         </div>
         
+        <!-- Empty State -->
         <div x-show="!loading && prompts.length === 0" class="text-center py-12">
             <div class="text-gray-400 text-6xl mb-4">
                 <i class="fas fa-search"></i>
             </div>
             <h3 class="text-xl font-medium text-gray-900 mb-2">No prompts found</h3>
             <p class="text-gray-600 mb-6">Start by creating your first prompt</p>
-            <button class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition">
+            <a href="/prompts/create" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition">
                 Create Your First Prompt
-            </button>
+            </a>
         </div>
         
-        <div x-show="!loading && prompts.length > 0" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Grid View -->
+        <div x-show="!loading && prompts.length > 0 && viewMode === 'grid'" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <template x-for="prompt in prompts" :key="prompt.id">
                 <div class="bg-white rounded-lg shadow hover:shadow-md transition p-6">
                     <div class="flex items-start justify-between mb-3">
@@ -55,12 +101,12 @@
                     
                     <p class="text-gray-600 mb-4 line-clamp-3" x-text="prompt.description"></p>
                     
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between mb-4">
                         <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm" x-text="prompt.category || 'General'"></span>
                         <span class="text-sm text-gray-500" x-text="new Date(prompt.created_at).toLocaleDateString()"></span>
                     </div>
                     
-                    <div class="mt-4 flex space-x-2">
+                    <div class="flex space-x-2">
                         <a :href="`/prompts/${prompt.id}`" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition text-sm text-center">
                             <i class="fas fa-eye mr-2"></i>View
                         </a>
@@ -71,14 +117,131 @@
                 </div>
             </template>
         </div>
+
+        <!-- List View -->
+        <div x-show="!loading && prompts.length > 0 && viewMode === 'list'" class="space-y-4">
+            <template x-for="prompt in prompts" :key="prompt.id">
+                <div class="bg-white rounded-lg shadow hover:shadow-md transition p-6">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <h3 class="text-xl font-semibold text-gray-900" x-text="prompt.title"></h3>
+                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium" x-text="prompt.category || 'General'"></span>
+                            </div>
+                            
+                            <p class="text-gray-600 mb-4 text-base" x-text="prompt.description"></p>
+
+                            <!-- Content Preview -->
+                            <div class="mb-4">
+                                <div class="text-sm text-gray-700 bg-gray-50 p-4 rounded border">
+                                    <pre class="whitespace-pre-wrap font-mono text-sm line-clamp-2" x-text="prompt.content || 'No content preview available'"></pre>
+                                </div>
+                            </div>
+
+                            <!-- Metadata -->
+                            <div class="text-sm text-gray-500">
+                                <span>Created </span><span x-text="new Date(prompt.created_at).toLocaleDateString()"></span>
+                                <span class="mx-2">•</span>
+                                <span>Updated </span><span x-text="new Date(prompt.updated_at || prompt.created_at).toLocaleDateString()"></span>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center space-x-2 ml-6">
+                            <a :href="`/prompts/${prompt.id}`" class="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </a>
+                            <a :href="`/prompts/${prompt.id}/edit`" class="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
+                            <button @click="deletePrompt(prompt.id)" class="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Table View -->
+        <div x-show="!loading && prompts.length > 0 && viewMode === 'table'" class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Title
+                            </th>
+                            <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Category
+                            </th>
+                            <th class="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Created
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-for="prompt in prompts" :key="prompt.id">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4">
+                                    <div class="max-w-xs">
+                                        <div class="text-sm font-medium text-gray-900 truncate" x-text="prompt.title"></div>
+                                        <div x-show="prompt.description" class="text-sm text-gray-500 truncate" x-text="prompt.description"></div>
+                                        <!-- Mobile-only info -->
+                                        <div class="md:hidden mt-2">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800" x-text="prompt.category || 'General'"></span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="hidden md:table-cell px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" x-text="prompt.category || 'General'"></span>
+                                </td>
+                                <td class="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="new Date(prompt.created_at).toLocaleDateString()"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex items-center space-x-2">
+                                        <a :href="`/prompts/${prompt.id}`" class="text-blue-600 hover:text-blue-900" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a :href="`/prompts/${prompt.id}/edit`" class="text-gray-600 hover:text-gray-900" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button @click="deletePrompt(prompt.id)" class="text-red-600 hover:text-red-900" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-function promptsGridData() {
+function promptsDisplayData() {
     return {
         prompts: [],
         loading: true,
+        viewMode: 'grid',
+        
+        init() {
+            // Load saved view mode from localStorage
+            const savedViewMode = localStorage.getItem('prompts_view_mode');
+            if (savedViewMode && ['grid', 'list', 'table'].includes(savedViewMode)) {
+                this.viewMode = savedViewMode;
+            }
+            
+            // Watch for viewMode changes and save to localStorage
+            this.$watch('viewMode', (value) => {
+                localStorage.setItem('prompts_view_mode', value);
+            });
+        },
+        
         async loadPrompts() {
             try {
                 const response = await fetch('/api/prompts');
@@ -88,6 +251,30 @@ function promptsGridData() {
                 console.error('Error loading prompts:', error);
             } finally {
                 this.loading = false;
+            }
+        },
+        
+        async deletePrompt(promptId) {
+            if (!confirm('Are you sure you want to delete this prompt?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/prompts/${promptId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    // Remove the prompt from the local array
+                    this.prompts = this.prompts.filter(p => p.id !== promptId);
+                    // Show success message (you can customize this)
+                    console.log('Prompt deleted successfully');
+                } else {
+                    throw new Error('Failed to delete prompt');
+                }
+            } catch (error) {
+                console.error('Error deleting prompt:', error);
+                alert('Failed to delete prompt. Please try again.');
             }
         }
     }
