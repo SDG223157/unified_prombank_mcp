@@ -359,14 +359,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         request.session['user_id'] = user.id
         request.session['access_token'] = jwt_token
         
-        # Redirect to frontend with success
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-        return RedirectResponse(url=f"{frontend_url}/dashboard?auth=success")
+        # Redirect to dashboard with success
+        return RedirectResponse(url="/dashboard?auth=success")
         
     except Exception as e:
         logger.error(f"Google OAuth error: {e}")
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-        return RedirectResponse(url=f"{frontend_url}/?auth=error")
+        return RedirectResponse(url="/?auth=error")
 
 @app.get("/api/auth/logout")
 async def logout(request: Request):

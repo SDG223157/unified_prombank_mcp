@@ -1,22 +1,22 @@
 {
   "name": "prompt-house-premium-unified",
   "version": "1.0.0",
-  "description": "Unified Prompt House Premium with Backend, Frontend and MCP Server",
+  "description": "Unified Prompt House Premium with Backend, Python Frontend and MCP Server",
   "private": true,
   "main": "backend/src/index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:mcp\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:mcp\"",
     "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
     "dev:mcp": "cd mcp-server && npm run dev",
-    "build": "npm run build:backend && npm run build:frontend && npm run build:mcp",
+    "dev:python": "cd unified-python && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "build": "npm run build:backend && npm run build:mcp",
     "build:backend": "cd backend && npm run generate",
-    "build:frontend": "cd frontend && NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://prombank.app/api} npm run build",
     "build:mcp": "cd mcp-server && npm run build",
     "start": "cd backend && npm start",
     "start:mcp": "cd mcp-server && npm start",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../mcp-server && npm install",
-    "lint": "cd frontend && npm run lint",
+    "start:python": "cd unified-python && python -m uvicorn main:app --host 0.0.0.0 --port 8000",
+    "install:all": "npm install && cd backend && npm install && cd ../mcp-server && npm install",
+    "install:python": "cd unified-python && pip install -r requirements.txt",
     "test": "cd backend && npm test"
   },
   "dependencies": {
@@ -25,10 +25,9 @@
   "devDependencies": {},
   "workspaces": [
     "backend",
-    "frontend", 
     "mcp-server"
   ],
-  "keywords": ["express", "next.js", "mcp", "prompts", "ai", "model-context-protocol", "unified"],
+  "keywords": ["express", "python", "fastapi", "mcp", "prompts", "ai", "model-context-protocol", "unified"],
   "author": "Your Name",
   "license": "MIT"
 }
