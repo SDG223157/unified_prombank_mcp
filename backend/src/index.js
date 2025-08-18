@@ -1,4 +1,19 @@
 require('dotenv').config();
+
+// Ensure Prisma client is generated before importing database
+const { execSync } = require('child_process');
+console.log('🔧 Ensuring Prisma client is generated...');
+try {
+  execSync('npx prisma generate --force-generate', { 
+    cwd: __dirname + '/../',
+    stdio: 'inherit'
+  });
+  console.log('✅ Prisma client generated successfully');
+} catch (error) {
+  console.log('❌ Prisma generation failed:', error.message);
+  console.log('Attempting to continue with existing client...');
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
