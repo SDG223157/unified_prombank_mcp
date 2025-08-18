@@ -51,13 +51,15 @@ COPY --from=deps /app/mcp-server/node_modules ./mcp-server/node_modules
 
 # Generate Prisma client for correct platform AFTER copying node_modules
 WORKDIR /app/backend
-# Clear any cached Prisma client and force regeneration for Debian
+# Clear any cached Prisma client and force regeneration for Debian with OpenSSL 3.0
 RUN rm -rf node_modules/.prisma node_modules/@prisma/client/libquery_engine-* || true
-ENV PRISMA_CLI_BINARY_TARGETS=linux-gnu-openssl-1.1.x
-ENV PRISMA_QUERY_ENGINE_LIBRARY=/tmp/libquery_engine-linux-gnu-openssl-1.1.x.so.node
+ENV PRISMA_CLI_BINARY_TARGETS=linux-gnu-openssl-3.0.x
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/tmp/libquery_engine-linux-gnu-openssl-3.0.x.so.node
+ENV PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
 RUN npx prisma generate --force-generate \
     && ls -la node_modules/.prisma/client/ \
-    && echo "Generated Prisma client for platform: $(ls node_modules/.prisma/client/libquery_engine-*.so.node)"
+    && echo "Generated Prisma client for platform: $(ls node_modules/.prisma/client/libquery_engine-*.so.node)" \
+    && ldd node_modules/.prisma/client/libquery_engine-*.so.node | grep ssl || echo "SSL dependencies not found"
 
 # Build frontend
 WORKDIR /app/frontend
