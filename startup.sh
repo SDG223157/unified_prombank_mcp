@@ -32,13 +32,28 @@ echo "Connecting to database: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     # Try using mysql command directly with extracted credentials
-    if mysql -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" >/dev/null 2>&1; then
+    CONNECTION_ERROR=$(mysql -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" 2>&1)
+    if [ $? -eq 0 ]; then
         echo "Database connection established"
         break
     fi
     
     RETRY_COUNT=$((RETRY_COUNT + 1))
     echo "Database connection attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}ms..."
+    
+    # Show detailed error on first few attempts
+    if [ $RETRY_COUNT -le 3 ]; then
+        echo "Connection error: $CONNECTION_ERROR"
+    fi
+    
+    # Try network connectivity test
+    if [ $RETRY_COUNT -eq 1 ]; then
+        echo "Testing network connectivity to ${DB_HOST_EXTRACTED}..."
+        if command -v nc >/dev/null 2>&1; then
+            nc -z "${DB_HOST_EXTRACTED}" "${DB_PORT_EXTRACTED}" && echo "Port ${DB_PORT_EXTRACTED} is open" || echo "Port ${DB_PORT_EXTRACTED} is not reachable"
+        fi
+    fi
+    
     sleep $((RETRY_DELAY / 1000))
 done
 

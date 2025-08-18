@@ -64,7 +64,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Install dumb-init and mysql client for health checks
-RUN apk add --no-cache dumb-init mysql-client mariadb-client
+RUN apk add --no-cache dumb-init mysql-client mariadb-client netcat-openbsd
 
 # Create app user
 RUN addgroup --system --gid 1001 nodejs
