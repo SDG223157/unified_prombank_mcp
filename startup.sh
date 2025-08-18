@@ -15,53 +15,38 @@ cleanup() {
 # Set up signal handlers
 trap cleanup TERM INT
 
-# Wait for database to be ready (with retry logic)
-echo "Waiting for database connection..."
+# Wait for database to be ready (simplified approach)
+echo "Waiting for database to be available..."
+
+# Extract database connection details from DATABASE_URL for network test
+DB_HOST_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+DB_PORT_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+
+echo "Testing network connectivity to database: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
+
+# Simple network connectivity test with retry
 RETRY_COUNT=0
 MAX_RETRIES=${DATABASE_RETRY_ATTEMPTS:-12}
 RETRY_DELAY=${DATABASE_RETRY_DELAY:-5000}
 
-# Extract database connection details from DATABASE_URL
-DB_HOST_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-DB_PORT_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-DB_USER_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
-DB_PASS_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-DB_NAME_EXTRACTED=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
-
-echo "Connecting to database: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
-
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    # Try using mariadb command directly with extracted credentials (disable SSL verification)
-    # Use mariadb client which handles MySQL 8.0 better
-    CONNECTION_ERROR=$(mariadb --skip-ssl -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" 2>&1)
-    if [ $? -eq 0 ]; then
-        echo "Database connection established"
-        break
-    fi
-    
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    echo "Database connection attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}ms..."
-    
-    # Show detailed error on first few attempts
-    if [ $RETRY_COUNT -le 3 ]; then
-        echo "Connection error: $CONNECTION_ERROR"
-    fi
-    
-    # Try network connectivity test
-    if [ $RETRY_COUNT -eq 1 ]; then
-        echo "Testing network connectivity to ${DB_HOST_EXTRACTED}..."
-        if command -v nc >/dev/null 2>&1; then
-            nc -z "${DB_HOST_EXTRACTED}" "${DB_PORT_EXTRACTED}" && echo "Port ${DB_PORT_EXTRACTED} is open" || echo "Port ${DB_PORT_EXTRACTED} is not reachable"
+    if command -v nc >/dev/null 2>&1; then
+        if nc -z "${DB_HOST_EXTRACTED}" "${DB_PORT_EXTRACTED}"; then
+            echo "Database port ${DB_PORT_EXTRACTED} is accessible"
+            echo "Skipping CLI database authentication test (Node.js will handle MySQL 8.0 auth)"
+            break
         fi
     fi
     
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    echo "Network connectivity attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}ms..."
     sleep $((RETRY_DELAY / 1000))
 done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-    echo "Failed to connect to database after $MAX_RETRIES attempts"
-    echo "Database URL: mysql://${DB_USER_EXTRACTED}:****@${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}/${DB_NAME_EXTRACTED}"
-    exit 1
+    echo "Failed to reach database port after $MAX_RETRIES attempts"
+    echo "Database host: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
+    echo "Proceeding anyway - Node.js application will handle database connection"
 fi
 
 # Additional startup delay if specified
