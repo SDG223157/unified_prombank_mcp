@@ -109,9 +109,11 @@ COPY --chown=nextjs:nodejs package.json ./package.json
 COPY --chown=nextjs:nodejs startup.sh ./startup.sh
 RUN chmod +x ./startup.sh
 
-# Verify Prisma client exists
-RUN ls -la /app/backend/node_modules/.prisma/client/ || echo "Prisma client directory not found"
-RUN ls -la /app/backend/node_modules/.prisma/client/libquery_engine-*.so.node || echo "Prisma engine binary not found"
+# Regenerate Prisma client in runtime stage to ensure proper module structure
+WORKDIR /app/backend
+RUN npx prisma generate --force-generate \
+    && ls -la node_modules/.prisma/client/ \
+    && echo "Runtime Prisma client generated: $(ls node_modules/.prisma/client/libquery_engine-*.so.node)"
 
 # Set proper permissions
 RUN chown -R nextjs:nodejs /app
