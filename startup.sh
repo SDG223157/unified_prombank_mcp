@@ -55,7 +55,9 @@ if [ -n "$STARTUP_DELAY" ]; then
     sleep $STARTUP_DELAY
 fi
 
-# Run database migrations
+# Generate Prisma client if needed and run database migrations
+echo "Ensuring Prisma client is generated..."
+cd /app/backend && npx prisma generate --force-generate
 echo "Running database migrations..."
 cd /app/backend && npx prisma migrate deploy
 
