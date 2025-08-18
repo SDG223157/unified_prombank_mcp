@@ -93,13 +93,37 @@
                     </div>
                     
                     <div class="mt-4">
-                        <h4 class="font-medium text-green-800">How to use with Cursor MCP:</h4>
-                        <ol class="list-decimal list-inside text-sm text-green-700 mt-2 space-y-1">
-                            <li>Copy the token above</li>
-                            <li>In Cursor, go to Settings → MCP</li>
-                            <li>Add server: <code class="bg-green-100 px-1 rounded">https://prombank.app/api/mcp</code></li>
-                            <li>Set Authorization header: <code class="bg-green-100 px-1 rounded">Bearer YOUR_TOKEN</code></li>
-                        </ol>
+                        <h4 class="font-medium text-green-800 mb-3">🔗 Cursor MCP Setup:</h4>
+                        
+                        <!-- Installation Step -->
+                        <div class="mb-4">
+                            <h5 class="text-sm font-medium text-green-700 mb-2">Step 1: Install MCP Server</h5>
+                            <div class="bg-green-50 p-2 rounded border flex items-center">
+                                <code class="text-xs text-green-800 flex-1">curl -fsSL https://raw.githubusercontent.com/SDG223157/unified_prombank_mcp/main/install-mcp.sh | bash</code>
+                                <button onclick="navigator.clipboard.writeText('curl -fsSL https://raw.githubusercontent.com/SDG223157/unified_prombank_mcp/main/install-mcp.sh | bash')" 
+                                        class="ml-2 text-green-600 hover:text-green-800 p-1">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Configuration Step -->
+                        <div class="mb-4">
+                            <h5 class="text-sm font-medium text-green-700 mb-2">Step 2: Add to Cursor MCP Settings</h5>
+                            <div class="bg-green-50 p-3 rounded border">
+                                <pre class="text-xs text-green-800 whitespace-pre-wrap mb-2" x-text="JSON.stringify(createdToken.mcp_config, null, 2)"></pre>
+                                <button x-on:click="navigator.clipboard.writeText(JSON.stringify(createdToken.mcp_config, null, 2))" 
+                                        class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                                    <i class="fas fa-copy mr-1"></i>Copy Configuration
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Final Steps -->
+                        <div class="text-sm text-green-700 space-y-1">
+                            <p><strong>Step 3:</strong> Restart Cursor to load the MCP server</p>
+                            <p><strong>Step 4:</strong> Try commands like: "Get all prompts" or "Create a prompt for [topic]"</p>
+                        </div>
                     </div>
                     
                     <button @click="createdToken = null" class="mt-4 text-green-600 hover:text-green-800">
@@ -171,6 +195,10 @@
                                     <span x-text="formatDate(token.created_at)"></span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                    <button @click="getMcpConfig(token)" 
+                                            class="text-blue-600 hover:text-blue-900">
+                                        <i class="fas fa-cog mr-1"></i>MCP
+                                    </button>
                                     <button @click="toggleToken(token)" 
                                             :class="token.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'">
                                         <span x-text="token.is_active ? 'Disable' : 'Enable'"></span>
@@ -304,6 +332,80 @@ function tokensData() {
             } catch (error) {
                 console.error('Error deleting token:', error);
                 this.showMessage('Error deleting token', 'error');
+            }
+        },
+
+        async getMcpConfig(token) {
+            try {
+                const response = await fetch(`/api/tokens/${token.id}/mcp-config`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Create a modal to show the configuration
+                    const modal = document.createElement('div');
+                    modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+                    modal.innerHTML = `
+                        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                            <div class="mt-3">
+                                <h3 class="text-lg font-medium text-gray-900 mb-4">MCP Configuration for "${data.token_name}"</h3>
+                                
+                                <div class="mb-4">
+                                    <h4 class="font-medium text-gray-700 mb-2">Step 1: Install MCP Server</h4>
+                                    <div class="bg-gray-50 p-3 rounded border flex items-center">
+                                        <code class="text-xs text-gray-800 flex-1">${data.installation_command}</code>
+                                        <button onclick="navigator.clipboard.writeText('${data.installation_command}')" 
+                                                class="ml-2 text-blue-600 hover:text-blue-800 p-1">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <h4 class="font-medium text-gray-700 mb-2">Step 2: Configuration</h4>
+                                    <div class="bg-gray-50 p-3 rounded border">
+                                        <pre class="text-xs text-gray-800 whitespace-pre-wrap mb-2">${JSON.stringify(data.mcp_config, null, 2)}</pre>
+                                        <button onclick="navigator.clipboard.writeText('${JSON.stringify(data.mcp_config, null, 2)}')" 
+                                                class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                                            <i class="fas fa-copy mr-1"></i>Copy Configuration
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-yellow-50 p-3 rounded border border-yellow-200 mb-4">
+                                    <p class="text-sm text-yellow-800">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        ${data.note}
+                                    </p>
+                                </div>
+                                
+                                <div class="flex justify-end">
+                                    <button onclick="this.closest('.fixed').remove()" 
+                                            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(modal);
+                    
+                    // Remove modal when clicking outside
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            modal.remove();
+                        }
+                    });
+                    
+                } else {
+                    const error = await response.json();
+                    this.showMessage(error.detail || 'Failed to get MCP configuration', 'error');
+                }
+            } catch (error) {
+                this.showMessage('Network error', 'error');
             }
         },
 

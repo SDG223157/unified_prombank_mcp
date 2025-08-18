@@ -14,10 +14,33 @@ from database import get_db, connect_with_retry, create_tables, User, Prompt, To
 from auth import setup_oauth, create_access_token, get_current_user, require_auth, create_or_update_user_from_google, generate_api_token, hash_token, get_current_user_or_token
 import uuid
 import httpx
+import json
+import csv
+import io
+from datetime import datetime
+from typing import List, Dict, Any
+from pydantic import BaseModel, ValidationError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Pydantic models for import
+class ImportPromptModel(BaseModel):
+    title: str
+    description: str = ""
+    content: str
+    category: str = "Imported"
+    tags: List[str] = []
+    variables: List[str] = []
+    is_public: bool = False
+
+class BulkImportRequest(BaseModel):
+    prompts: List[ImportPromptModel]
+    
+class URLImportRequest(BaseModel):
+    url: str
+    format: str = "json"  # json, csv, or auto-detect
 
 # Create FastAPI app
 app = FastAPI(
@@ -437,6 +460,19 @@ async def create_token(request: Request, current_user: User = Depends(require_au
         db.commit()
         db.refresh(token)
         
+        # Generate MCP configuration
+        mcp_config = {
+            "mcpServers": {
+                "prompt-house-premium": {
+                    "command": "prompt-house-premium-mcp",
+                    "env": {
+                        "PROMPTHOUSE_API_URL": "https://prombank.app",
+                        "PROMPTHOUSE_ACCESS_TOKEN": raw_token
+                    }
+                }
+            }
+        }
+        
         return {
             "id": token.id,
             "name": token.name,
@@ -444,7 +480,9 @@ async def create_token(request: Request, current_user: User = Depends(require_au
             "token": raw_token,  # Only returned once during creation
             "permissions": token.permissions,
             "created_at": token.created_at.isoformat(),
-            "message": "Token created successfully. Save this token - it won't be shown again!"
+            "message": "Token created successfully. Save this token - it won't be shown again!",
+            "mcp_config": mcp_config,
+            "installation_command": "curl -fsSL https://raw.githubusercontent.com/SDG223157/unified_prombank_mcp/main/install-mcp.sh | bash"
         }
     except Exception as e:
         logger.error(f"Error creating token: {e}")
@@ -517,6 +555,44 @@ async def delete_token(token_id: str, current_user: User = Depends(require_auth)
     except Exception as e:
         logger.error(f"Error deleting token: {e}")
         db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/api/tokens/{token_id}/mcp-config")
+async def get_mcp_config(token_id: str, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Get MCP configuration for a specific token"""
+    try:
+        token = db.query(Token).filter(
+            Token.id == token_id,
+            Token.user_id == current_user.id
+        ).first()
+        
+        if not token:
+            raise HTTPException(status_code=404, detail="Token not found")
+        
+        # Note: We can't regenerate the raw token, so we provide a template
+        mcp_config = {
+            "mcpServers": {
+                "prompt-house-premium": {
+                    "command": "prompt-house-premium-mcp",
+                    "env": {
+                        "PROMPTHOUSE_API_URL": "https://prombank.app",
+                        "PROMPTHOUSE_ACCESS_TOKEN": "YOUR_API_TOKEN_HERE"
+                    }
+                }
+            }
+        }
+        
+        return {
+            "token_name": token.name,
+            "token_id": token.id,
+            "mcp_config": mcp_config,
+            "installation_command": "curl -fsSL https://raw.githubusercontent.com/SDG223157/unified_prombank_mcp/main/install-mcp.sh | bash",
+            "note": "Replace 'YOUR_API_TOKEN_HERE' with your actual API token"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting MCP config: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # MCP API Endpoints (for Cursor integration)
@@ -597,6 +673,265 @@ async def mcp_get_prompt(prompt_name: str, request: Request, db: Session = Depen
         logger.error(f"Error getting MCP prompt: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# Import endpoints
+@app.post("/api/import/json")
+async def import_prompts_json(
+    request: BulkImportRequest,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """Import prompts from JSON data"""
+    try:
+        imported_prompts = []
+        for prompt_data in request.prompts:
+            # Extract variables from content
+            import re
+            variables = re.findall(r'\{\{(\w+)\}\}', prompt_data.content)
+            variables = list(set(variables))  # Remove duplicates
+            
+            new_prompt = Prompt(
+                id=str(uuid.uuid4()),
+                title=prompt_data.title,
+                description=prompt_data.description,
+                content=prompt_data.content,
+                category=prompt_data.category,
+                tags=prompt_data.tags,
+                variables=variables,
+                is_public=prompt_data.is_public,
+                user_id=current_user.id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(new_prompt)
+            imported_prompts.append({
+                "id": new_prompt.id,
+                "title": new_prompt.title,
+                "variables_detected": variables
+            })
+        
+        db.commit()
+        return {
+            "message": f"Successfully imported {len(imported_prompts)} prompts",
+            "imported_prompts": imported_prompts
+        }
+    except Exception as e:
+        logger.error(f"Error importing prompts: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+
+@app.post("/api/import/csv")
+async def import_prompts_csv(
+    request: Request,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """Import prompts from CSV data"""
+    try:
+        form = await request.form()
+        csv_content = form.get("csv_content", "")
+        
+        if not csv_content:
+            raise HTTPException(status_code=400, detail="No CSV content provided")
+        
+        # Parse CSV
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
+        imported_prompts = []
+        
+        for row in csv_reader:
+            # Required fields
+            if not row.get('title') or not row.get('content'):
+                continue
+                
+            # Extract variables from content
+            import re
+            variables = re.findall(r'\{\{(\w+)\}\}', row.get('content', ''))
+            variables = list(set(variables))
+            
+            # Parse tags (comma-separated)
+            tags = [tag.strip() for tag in row.get('tags', '').split(',') if tag.strip()]
+            
+            new_prompt = Prompt(
+                id=str(uuid.uuid4()),
+                title=row.get('title'),
+                description=row.get('description', ''),
+                content=row.get('content'),
+                category=row.get('category', 'Imported'),
+                tags=tags,
+                variables=variables,
+                is_public=row.get('is_public', '').lower() in ['true', '1', 'yes'],
+                user_id=current_user.id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(new_prompt)
+            imported_prompts.append({
+                "id": new_prompt.id,
+                "title": new_prompt.title,
+                "variables_detected": variables
+            })
+        
+        db.commit()
+        return {
+            "message": f"Successfully imported {len(imported_prompts)} prompts from CSV",
+            "imported_prompts": imported_prompts
+        }
+    except Exception as e:
+        logger.error(f"Error importing CSV: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"CSV import failed: {str(e)}")
+
+@app.post("/api/import/url")
+async def import_prompts_url(
+    request: URLImportRequest,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """Import prompts from a URL (JSON or CSV)"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(request.url)
+            response.raise_for_status()
+            content = response.text
+        
+        imported_prompts = []
+        
+        if request.format == "json" or (request.format == "auto-detect" and content.strip().startswith('{')):
+            # Parse as JSON
+            data = json.loads(content)
+            prompts_data = data if isinstance(data, list) else data.get('prompts', [])
+            
+            for prompt_data in prompts_data:
+                if not prompt_data.get('title') or not prompt_data.get('content'):
+                    continue
+                    
+                # Extract variables
+                import re
+                variables = re.findall(r'\{\{(\w+)\}\}', prompt_data.get('content', ''))
+                variables = list(set(variables))
+                
+                new_prompt = Prompt(
+                    id=str(uuid.uuid4()),
+                    title=prompt_data.get('title'),
+                    description=prompt_data.get('description', ''),
+                    content=prompt_data.get('content'),
+                    category=prompt_data.get('category', 'Imported'),
+                    tags=prompt_data.get('tags', []),
+                    variables=variables,
+                    is_public=prompt_data.get('is_public', False),
+                    user_id=current_user.id,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.add(new_prompt)
+                imported_prompts.append({
+                    "id": new_prompt.id,
+                    "title": new_prompt.title,
+                    "variables_detected": variables
+                })
+        
+        elif request.format == "csv" or request.format == "auto-detect":
+            # Parse as CSV
+            csv_reader = csv.DictReader(io.StringIO(content))
+            
+            for row in csv_reader:
+                if not row.get('title') or not row.get('content'):
+                    continue
+                    
+                # Extract variables
+                import re
+                variables = re.findall(r'\{\{(\w+)\}\}', row.get('content', ''))
+                variables = list(set(variables))
+                
+                # Parse tags
+                tags = [tag.strip() for tag in row.get('tags', '').split(',') if tag.strip()]
+                
+                new_prompt = Prompt(
+                    id=str(uuid.uuid4()),
+                    title=row.get('title'),
+                    description=row.get('description', ''),
+                    content=row.get('content'),
+                    category=row.get('category', 'Imported'),
+                    tags=tags,
+                    variables=variables,
+                    is_public=row.get('is_public', '').lower() in ['true', '1', 'yes'],
+                    user_id=current_user.id,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.add(new_prompt)
+                imported_prompts.append({
+                    "id": new_prompt.id,
+                    "title": new_prompt.title,
+                    "variables_detected": variables
+                })
+        
+        db.commit()
+        return {
+            "message": f"Successfully imported {len(imported_prompts)} prompts from URL",
+            "imported_prompts": imported_prompts,
+            "source_url": request.url
+        }
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {str(e)}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error importing from URL: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"URL import failed: {str(e)}")
+
+# MCP Import endpoint
+@app.post("/api/mcp/import")
+async def mcp_import_prompts(request: Request, db: Session = Depends(get_db)):
+    """MCP endpoint to import prompts (requires API token)"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="API token required")
+    
+    try:
+        data = await request.json()
+        import_type = data.get("type", "json")  # json, csv, url
+        
+        if import_type == "json":
+            prompts_data = data.get("prompts", [])
+            imported_count = 0
+            
+            for prompt_data in prompts_data:
+                if not prompt_data.get('title') or not prompt_data.get('content'):
+                    continue
+                    
+                # Extract variables
+                import re
+                variables = re.findall(r'\{\{(\w+)\}\}', prompt_data.get('content', ''))
+                variables = list(set(variables))
+                
+                new_prompt = Prompt(
+                    id=str(uuid.uuid4()),
+                    title=prompt_data.get('title'),
+                    description=prompt_data.get('description', ''),
+                    content=prompt_data.get('content'),
+                    category=prompt_data.get('category', 'Imported'),
+                    tags=prompt_data.get('tags', []),
+                    variables=variables,
+                    is_public=prompt_data.get('is_public', False),
+                    user_id=current_user.id,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.add(new_prompt)
+                imported_count += 1
+            
+            db.commit()
+            return {"message": f"Successfully imported {imported_count} prompts via MCP"}
+        
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported import type for MCP")
+            
+    except Exception as e:
+        logger.error(f"Error in MCP import: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="MCP import failed")
+
 # Frontend routes
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend(request: Request):
@@ -655,6 +990,14 @@ async def serve_tokens(request: Request):
     return templates.TemplateResponse("tokens.html", {
         "request": request,
         "title": "API Tokens - Prompt House Premium"
+    })
+
+@app.get("/import", response_class=HTMLResponse)
+async def serve_import(request: Request):
+    """Serve the import page"""
+    return templates.TemplateResponse("import.html", {
+        "request": request,
+        "title": "Import Prompts - Prompt House Premium"
     })
 
 # Startup event

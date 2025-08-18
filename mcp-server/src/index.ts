@@ -42,6 +42,22 @@ interface UpdatePromptRequest {
   category?: string;
 }
 
+interface ImportPromptData {
+  title: string;
+  description?: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  is_public?: boolean;
+}
+
+interface ImportRequest {
+  type: 'json' | 'url';
+  prompts?: ImportPromptData[];
+  url?: string;
+  format?: 'json' | 'csv' | 'auto-detect';
+}
+
 class PromptHousePremiumServer {
   private server: Server;
   private apiUrl: string;
@@ -214,6 +230,49 @@ class PromptHousePremiumServer {
             }
           },
           {
+            name: 'import_prompts',
+            description: 'Import multiple prompts from JSON data or URL',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['json', 'url'],
+                  description: 'Import type: json (direct data) or url (from remote source)'
+                },
+                prompts: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      content: { type: 'string' },
+                      category: { type: 'string' },
+                      tags: {
+                        type: 'array',
+                        items: { type: 'string' }
+                      },
+                      is_public: { type: 'boolean' }
+                    },
+                    required: ['title', 'content']
+                  },
+                  description: 'Array of prompts to import (required for json type)'
+                },
+                url: {
+                  type: 'string',
+                  description: 'URL to fetch prompts from (required for url type)'
+                },
+                format: {
+                  type: 'string',
+                  enum: ['json', 'csv', 'auto-detect'],
+                  description: 'Format of the data at URL (for url type)'
+                }
+              },
+              required: ['type']
+            }
+          },
+          {
             name: 'get_user_prompts',
             description: 'Get prompts created by the current user',
             inputSchema: {
@@ -257,6 +316,9 @@ class PromptHousePremiumServer {
           
           case 'get_user_prompts':
             return await this.handleGetUserPrompts(args);
+          
+          case 'import_prompts':
+            return await this.handleImportPrompts(args);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -369,6 +431,64 @@ class PromptHousePremiumServer {
         }
       ]
     };
+  }
+
+  private async handleImportPrompts(args: any) {
+    const request = args as ImportRequest;
+    
+    try {
+      if (request.type === 'json') {
+        // Direct JSON import
+        if (!request.prompts || request.prompts.length === 0) {
+          throw new Error('No prompts provided for JSON import');
+        }
+        
+        const data = await this.makeApiCall('/mcp/import', 'POST', {
+          type: 'json',
+          prompts: request.prompts
+        });
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✅ Import successful!\n\n${data.message}\n\nImported ${request.prompts.length} prompts via MCP.`
+            }
+          ]
+        };
+      } else if (request.type === 'url') {
+        // URL-based import
+        if (!request.url) {
+          throw new Error('URL is required for URL import');
+        }
+        
+        // For URL import, we use the regular import/url endpoint
+        const data = await this.makeApiCall('/import/url', 'POST', {
+          url: request.url,
+          format: request.format || 'auto-detect'
+        });
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✅ Import successful!\n\n${data.message}\n\nSource: ${data.source_url}\n\nImported prompts:\n${data.imported_prompts.map((p: any) => `• ${p.title}${p.variables_detected?.length ? ` (Variables: ${p.variables_detected.join(', ')})` : ''}`).join('\n')}`
+            }
+          ]
+        };
+      } else {
+        throw new Error(`Unsupported import type: ${request.type}`);
+      }
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Import failed: ${error.response?.data?.detail || error.message}`
+          }
+        ]
+      };
+    }
   }
 
   async run() {

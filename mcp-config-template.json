@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "prompt-house-premium": {
+      "command": "prompt-house-premium-mcp",
+      "env": {
+        "PROMPTHOUSE_API_URL": "https://prombank.app",
+        "PROMPTHOUSE_ACCESS_TOKEN": "{{API_TOKEN}}"
+      }
+    }
+  }
+}

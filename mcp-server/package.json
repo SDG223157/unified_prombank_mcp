@@ -1,16 +1,22 @@
 {
   "name": "prompt-house-premium-mcp",
   "version": "1.0.0",
-  "description": "MCP Server for Prompt House Premium with write operations",
+  "description": "MCP Server for Prompt House Premium - Create, read, update, delete, and import prompts via Model Context Protocol",
   "main": "dist/index.js",
   "bin": {
     "prompt-house-premium-mcp": "dist/index.js"
   },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "test": "jest"
+    "test": "jest",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
@@ -23,7 +29,24 @@
     "jest": "^29.7.0",
     "@types/jest": "^29.5.0"
   },
-  "keywords": ["mcp", "prompts", "ai", "model-context-protocol"],
-  "author": "Your Name",
-  "license": "MIT"
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "prompts",
+    "ai",
+    "prompt-management",
+    "cursor",
+    "prompt-house",
+    "import-export"
+  ],
+  "author": "SDG223157",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SDG223157/unified_prombank_mcp.git"
+  },
+  "homepage": "https://prombank.app",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
