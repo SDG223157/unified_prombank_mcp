@@ -1,0 +1,85 @@
+# Multi-stage build for Python Backend + Frontend + MCP Server deployment
+FROM python:3.11-slim AS base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    dumb-init \
+    default-mysql-client \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python backend stage
+FROM base AS python-backend
+WORKDIR /app/backend-python
+
+# Copy Python requirements and install dependencies
+COPY backend-python/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy Python backend source
+COPY backend-python/ .
+
+# Frontend build stage (using Node.js)
+FROM node:18-slim AS frontend-builder
+WORKDIR /app/frontend
+
+# Install frontend dependencies
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+# Copy frontend source and build
+COPY frontend/ .
+ENV NEXT_PUBLIC_API_URL=https://prombank.app/api
+RUN npm run build
+
+# MCP server build stage (using Node.js)
+FROM node:18-slim AS mcp-builder
+WORKDIR /app/mcp-server
+
+# Install MCP server dependencies
+COPY mcp-server/package.json mcp-server/package-lock.json ./
+RUN npm ci
+
+# Copy MCP server source and build
+COPY mcp-server/ .
+RUN npm run build
+
+# Final runtime stage
+FROM base AS runner
+WORKDIR /app
+
+# Create app user
+RUN groupadd --system --gid 1001 appgroup
+RUN useradd --system --uid 1001 --gid appgroup --shell /bin/bash --home /app appuser
+
+# Copy Python backend
+COPY --from=python-backend --chown=appuser:appgroup /app/backend-python ./backend-python
+COPY --from=python-backend --chown=appuser:appgroup /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=python-backend --chown=appuser:appgroup /usr/local/bin /usr/local/bin
+
+# Copy built frontend
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/.next ./frontend/.next
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/public ./frontend/public
+COPY --from=frontend-builder --chown=appuser:appgroup /app/frontend/package.json ./frontend/
+
+# Copy built MCP server
+COPY --from=mcp-builder --chown=appuser:appgroup /app/mcp-server/dist ./mcp-server/dist
+COPY --from=mcp-builder --chown=appuser:appgroup /app/mcp-server/node_modules ./mcp-server/node_modules
+COPY --from=mcp-builder --chown=appuser:appgroup /app/mcp-server/package.json ./mcp-server/
+
+# Copy startup script
+COPY --chown=appuser:appgroup startup-python.sh ./startup.sh
+RUN chmod +x ./startup.sh
+
+# Set proper permissions
+RUN chown -R appuser:appgroup /app
+USER appuser
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Use startup script to run all services
+CMD ["dumb-init", "./startup.sh"]

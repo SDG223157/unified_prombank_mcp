@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # Unified Python Backend + Frontend + MCP Server Application
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: prompthouse-python-app
+    environment:
+      # Database Configuration
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-mysql}:${MYSQL_PASSWORD:-secure-mysql-password-change-me}@${DB_HOST:-ro8k4k8k00ws8k8ooc8ow008}:3306/${MYSQL_DATABASE:-default}
+      DATABASE_RETRY_ATTEMPTS: 12
+      DATABASE_RETRY_DELAY: 5000
+      DB_CONNECTION_TIMEOUT: 60000
+      STARTUP_DELAY: 30
+      DB_HOST: ${DB_HOST:-ro8k4k8k00ws8k8ooc8ow008}
+      DB_USER: ${DB_USER:-mysql}
+      DB_PASSWORD: ${DB_PASSWORD:-secure-mysql-password-change-me}
+      
+      # Application Configuration
+      NODE_ENV: production
+      PORT: 3000
+      TRUST_PROXY: "true"
+      
+      # Authentication & Security
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_COOKIE_SECURE: "true"
+      SESSION_COOKIE_HTTPONLY: "true"
+      
+      # CORS & URLs
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://prombank.app}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://prombank.app}
+      FRONTEND_URL: ${FRONTEND_URL:-https://prombank.app}
+      BACKEND_URL: ${BACKEND_URL:-https://prombank.app}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://prombank.app/api}
+      
+      # Rate Limiting
+      RATE_LIMIT_MAX_REQUESTS: 100
+      RATE_LIMIT_WINDOW_MS: 900000
+      
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-https://prombank.app/api/auth/google/callback}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://prombank.app/api/auth/google/callback}
+      
+      # MCP Server Configuration (optional)
+      PROMPTHOUSE_API_URL: http://localhost:3000
+      PROMPTHOUSE_ACCESS_TOKEN: ${PROMPTHOUSE_ACCESS_TOKEN:-}
+      
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+networks:
+  app-network:
+    driver: bridge
+    name: prompthouse-python-network
