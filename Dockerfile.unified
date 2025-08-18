@@ -1,9 +1,11 @@
 # Multi-stage build for unified Backend + Frontend + MCP Server deployment
-FROM node:18-alpine AS base
+FROM node:18-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat openssl openssl-dev openssl1.1-compat libssl1.1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ libssl1.1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy backend package files and install
@@ -23,7 +25,9 @@ COPY package.json ./
 
 # Build stage
 FROM base AS builder
-RUN apk add --no-cache openssl openssl-dev openssl1.1-compat libssl1.1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ libssl1.1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy dependencies (only the ones that exist)
@@ -63,18 +67,15 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV OPENSSL_ROOT_DIR=/usr
-ENV OPENSSL_LIB_DIR=/usr/lib
-ENV OPENSSL_INCLUDE_DIR=/usr/include
 
-# Install dumb-init, mysql client and OpenSSL libraries for Prisma
-RUN apk add --no-cache dumb-init mysql-client mariadb-client netcat-openbsd openssl openssl-dev openssl1.1-compat libssl1.1 \
-    && ln -sf /usr/lib/libssl.so.1.1 /usr/lib/libssl.so.1.1 \
-    && ln -sf /usr/lib/libcrypto.so.1.1 /usr/lib/libcrypto.so.1.1
+# Install runtime dependencies for Debian
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    dumb-init mysql-client netcat-traditional libssl1.1 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 --gid nodejs --shell /bin/bash --home /app nextjs
 
 # Copy backend source and dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/backend/src ./backend/src
