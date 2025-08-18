@@ -51,8 +51,13 @@ COPY mcp-server/package.json ./mcp-server/
 
 # Generate Prisma client for correct platform
 WORKDIR /app/backend
+# Clear any cached Prisma client and force regeneration for Debian
+RUN rm -rf node_modules/.prisma node_modules/@prisma/client/libquery_engine-* || true
 ENV PRISMA_CLI_BINARY_TARGETS=linux-gnu-openssl-1.1.x
-RUN npx prisma generate --force-generate
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/tmp/libquery_engine-linux-gnu-openssl-1.1.x.so.node
+RUN npx prisma generate --force-generate \
+    && ls -la node_modules/.prisma/client/ \
+    && echo "Generated Prisma client for platform: $(ls node_modules/.prisma/client/libquery_engine-*.so.node)"
 
 # Build frontend
 WORKDIR /app/frontend
