@@ -3,7 +3,7 @@ FROM node:18-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl1.1-compat
 WORKDIR /app
 
 # Copy backend package files and install
@@ -23,6 +23,7 @@ COPY package.json ./
 
 # Build stage
 FROM base AS builder
+RUN apk add --no-cache openssl1.1-compat
 WORKDIR /app
 
 # Copy dependencies (only the ones that exist)
@@ -63,8 +64,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install dumb-init and mysql client for health checks
-RUN apk add --no-cache dumb-init mysql-client mariadb-client netcat-openbsd
+# Install dumb-init, mysql client and OpenSSL libraries for Prisma
+RUN apk add --no-cache dumb-init mysql-client mariadb-client netcat-openbsd openssl1.1-compat
 
 # Create app user
 RUN addgroup --system --gid 1001 nodejs
