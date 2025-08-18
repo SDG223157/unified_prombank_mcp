@@ -22,7 +22,7 @@ MAX_RETRIES=${DATABASE_RETRY_ATTEMPTS:-12}
 RETRY_DELAY=${DATABASE_RETRY_DELAY:-5000}
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if mysqladmin ping -h"${DB_HOST:-mysql}" -u"${DB_USER:-mysql}" -p"${DB_PASSWORD:-rAfbZgINjUNdHCPYJr8TpX27fN8EnjaFrse0wBsrSgyJ3MT198qmk7ePmmNyshpH}" --silent; then
+    if mysqladmin ping -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}" --silent; then
         echo "Database connection established"
         break
     fi
