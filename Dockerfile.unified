@@ -6,16 +6,20 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy all package files
+# Copy package files and install root dependencies
 COPY package.json ./
-COPY backend/package.json backend/package-lock.json ./backend/
-COPY frontend/package.json frontend/package-lock.json ./frontend/
-COPY mcp-server/package.json mcp-server/package-lock.json ./mcp-server/
-
-# Install all dependencies
 RUN npm install --omit=dev
+
+# Copy backend package files and install
+COPY backend/package.json backend/package-lock.json ./backend/
 RUN cd backend && npm ci
-RUN cd frontend && npm ci  
+
+# Copy frontend package files and install
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci
+
+# Copy mcp-server package files and install
+COPY mcp-server/package.json mcp-server/package-lock.json ./mcp-server/
 RUN cd mcp-server && npm ci
 
 # Build stage
