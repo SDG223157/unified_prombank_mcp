@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div id="prompt-view" x-data="viewPromptData()" x-init="loadPrompt('{{ prompt_id }}')">
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Loading prompt...</p>
+        </div>
+
+        <!-- Error State -->
+        <div x-show="error && !loading" class="text-center py-12">
+            <div class="text-red-500 text-6xl mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-medium text-gray-900 mb-2">Prompt Not Found</h3>
+            <p class="text-gray-600 mb-6" x-text="error"></p>
+            <a href="/prompts" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600">
+                Back to Prompts
+            </a>
+        </div>
+
+        <!-- Prompt Content -->
+        <div x-show="prompt && !loading && !error">
+            <!-- Header -->
+            <div class="mb-8 flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900" x-text="prompt.title"></h1>
+                    <p class="text-gray-600 mt-2" x-text="prompt.description"></p>
+                    <div class="flex items-center space-x-4 mt-4">
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm" x-text="prompt.category"></span>
+                        <span class="text-sm text-gray-500">
+                            Created <span x-text="formatDate(prompt.created_at)"></span>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex space-x-3">
+                    <button @click="copyToClipboard(prompt.content)" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                        <i class="fas fa-copy mr-2"></i>Copy
+                    </button>
+                    <button @click="editPrompt()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                        <i class="fas fa-edit mr-2"></i>Edit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Prompt Content -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Prompt Content</h2>
+                <div class="bg-gray-50 rounded-lg p-4 font-mono text-sm whitespace-pre-wrap" x-text="prompt.content"></div>
+            </div>
+
+            <!-- Tags -->
+            <div x-show="prompt.tags && prompt.tags.length > 0" class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">Tags</h3>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="tag in prompt.tags" :key="tag">
+                        <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm" x-text="tag"></span>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Variables -->
+            <div x-show="prompt.variables && prompt.variables.length > 0" class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">Variables</h3>
+                <div class="bg-white rounded-lg shadow p-4">
+                    <template x-for="variable in prompt.variables" :key="variable">
+                        <div class="mb-2 last:mb-0">
+                            <code class="bg-gray-100 px-2 py-1 rounded text-sm" x-text="'{' + variable + '}'"></code>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Back Button -->
+            <div class="mt-8">
+                <a href="/prompts" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Prompts
+                </a>
+            </div>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div x-show="message" class="fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50" :class="messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+            <p x-text="message"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewPromptData() {
+    return {
+        prompt: null,
+        loading: true,
+        error: null,
+        message: '',
+        messageType: 'success',
+
+        async loadPrompt(promptId) {
+            try {
+                const response = await fetch(`/api/prompts/${promptId}`);
+                
+                if (response.ok) {
+                    this.prompt = await response.json();
+                } else if (response.status === 404) {
+                    this.error = 'This prompt does not exist or has been deleted.';
+                } else {
+                    this.error = 'Failed to load prompt. Please try again.';
+                }
+            } catch (error) {
+                console.error('Error loading prompt:', error);
+                this.error = 'An error occurred while loading the prompt.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        formatDate(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleDateString();
+        },
+
+        async copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                this.showMessage('Prompt copied to clipboard!', 'success');
+            } catch (error) {
+                console.error('Failed to copy:', error);
+                this.showMessage('Failed to copy to clipboard', 'error');
+            }
+        },
+
+        editPrompt() {
+            if (this.prompt) {
+                window.location.href = `/prompts/${this.prompt.id}/edit`;
+            }
+        },
+
+        showMessage(text, type) {
+            this.message = text;
+            this.messageType = type;
+            
+            // Clear message after 3 seconds
+            setTimeout(() => {
+                this.message = '';
+            }, 3000);
+        }
+    }
+}
+</script>
+{% endblock %}

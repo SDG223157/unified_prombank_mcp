@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Edit Prompt</h1>
+        <p class="text-gray-600 mt-2">Update your prompt details and content</p>
+    </div>
+
+    <div id="edit-prompt" x-data="editPromptData()" x-init="loadPrompt('{{ prompt_id }}')">
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Loading prompt...</p>
+        </div>
+
+        <!-- Error State -->
+        <div x-show="error && !loading" class="text-center py-12">
+            <div class="text-red-500 text-6xl mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-medium text-gray-900 mb-2">Prompt Not Found</h3>
+            <p class="text-gray-600 mb-6" x-text="error"></p>
+            <a href="/prompts" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600">
+                Back to Prompts
+            </a>
+        </div>
+
+        <!-- Edit Form -->
+        <div x-show="formData && !loading && !error" class="bg-white rounded-lg shadow p-6">
+            <form @submit.prevent="updatePrompt()">
+                <!-- Title -->
+                <div class="mb-6">
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Prompt Title *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="title" 
+                        x-model="formData.title"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter a descriptive title for your prompt"
+                        required
+                    >
+                </div>
+
+                <!-- Description -->
+                <div class="mb-6">
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Description
+                    </label>
+                    <textarea 
+                        id="description" 
+                        x-model="formData.description"
+                        rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Briefly describe what this prompt does"
+                    ></textarea>
+                </div>
+
+                <!-- Category -->
+                <div class="mb-6">
+                    <label for="category" class="block text-sm font-medium text-gray-700 mb-2">
+                        Category
+                    </label>
+                    <select 
+                        id="category" 
+                        x-model="formData.category"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                        <option value="">Select a category</option>
+                        <option value="Development">Development</option>
+                        <option value="Writing">Writing</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Business">Business</option>
+                        <option value="Education">Education</option>
+                        <option value="Creative">Creative</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Content -->
+                <div class="mb-6">
+                    <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
+                        Prompt Content *
+                    </label>
+                    <textarea 
+                        id="content" 
+                        x-model="formData.content"
+                        rows="10"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                        placeholder="Enter your prompt content here..."
+                        required
+                    ></textarea>
+                </div>
+
+                <!-- Tags -->
+                <div class="mb-6">
+                    <label for="tags" class="block text-sm font-medium text-gray-700 mb-2">
+                        Tags
+                    </label>
+                    <input 
+                        type="text" 
+                        id="tags" 
+                        x-model="tagsInput"
+                        @keydown.enter.prevent="addTag()"
+                        @keydown.comma.prevent="addTag()"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Type tags and press Enter or comma to add"
+                    >
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <template x-for="tag in formData.tags" :key="tag">
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm flex items-center">
+                                <span x-text="tag"></span>
+                                <button type="button" @click="removeTag(tag)" class="ml-1 text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Privacy -->
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input 
+                            type="checkbox" 
+                            x-model="formData.is_public"
+                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                        >
+                        <span class="ml-2 text-sm text-gray-700">Make this prompt public (visible to all users)</span>
+                    </label>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex justify-between">
+                    <a :href="`/prompts/${promptId}`" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition">
+                        Cancel
+                    </a>
+                    <button 
+                        type="submit" 
+                        :disabled="updating"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+                    >
+                        <span x-show="!updating">Update Prompt</span>
+                        <span x-show="updating">Updating...</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Success/Error Messages -->
+            <div x-show="message" class="mt-4 p-4 rounded-lg" :class="messageType === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+                <p x-text="message"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editPromptData() {
+    return {
+        promptId: '{{ prompt_id }}',
+        formData: null,
+        tagsInput: '',
+        loading: true,
+        updating: false,
+        error: null,
+        message: '',
+        messageType: 'success',
+
+        async loadPrompt(promptId) {
+            try {
+                const response = await fetch(`/api/prompts/${promptId}`);
+                
+                if (response.ok) {
+                    const prompt = await response.json();
+                    this.formData = {
+                        title: prompt.title || '',
+                        description: prompt.description || '',
+                        category: prompt.category || '',
+                        content: prompt.content || '',
+                        tags: prompt.tags || [],
+                        is_public: prompt.is_public || false
+                    };
+                } else if (response.status === 404) {
+                    this.error = 'This prompt does not exist or has been deleted.';
+                } else {
+                    this.error = 'Failed to load prompt. Please try again.';
+                }
+            } catch (error) {
+                console.error('Error loading prompt:', error);
+                this.error = 'An error occurred while loading the prompt.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        addTag() {
+            const tag = this.tagsInput.trim();
+            if (tag && !this.formData.tags.includes(tag)) {
+                this.formData.tags.push(tag);
+                this.tagsInput = '';
+            }
+        },
+
+        removeTag(tag) {
+            this.formData.tags = this.formData.tags.filter(t => t !== tag);
+        },
+
+        async updatePrompt() {
+            if (!this.formData.title.trim() || !this.formData.content.trim()) {
+                this.showMessage('Please fill in all required fields', 'error');
+                return;
+            }
+
+            this.updating = true;
+            this.message = '';
+
+            try {
+                const response = await fetch(`/api/prompts/${this.promptId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(this.formData)
+                });
+
+                if (response.ok) {
+                    this.showMessage('Prompt updated successfully!', 'success');
+                    
+                    // Redirect to the prompt view after a delay
+                    setTimeout(() => {
+                        window.location.href = `/prompts/${this.promptId}`;
+                    }, 1500);
+                } else {
+                    const error = await response.json();
+                    this.showMessage(error.detail || 'Failed to update prompt', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating prompt:', error);
+                this.showMessage('An error occurred. Please try again.', 'error');
+            } finally {
+                this.updating = false;
+            }
+        },
+
+        showMessage(text, type) {
+            this.message = text;
+            this.messageType = type;
+            
+            // Clear message after 5 seconds
+            setTimeout(() => {
+                this.message = '';
+            }, 5000);
+        }
+    }
+}
+</script>
+{% endblock %}

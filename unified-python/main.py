@@ -146,6 +146,103 @@ async def create_prompt(request: Request, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.get("/api/prompts/{prompt_id}")
+async def get_prompt(prompt_id: str, db: Session = Depends(get_db)):
+    """Get a specific prompt by ID"""
+    try:
+        prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        return {
+            "id": prompt.id,
+            "title": prompt.title,
+            "description": prompt.description,
+            "content": prompt.content,
+            "category": prompt.category,
+            "tags": prompt.tags or [],
+            "is_public": prompt.is_public,
+            "variables": prompt.variables or [],
+            "prompt_metadata": prompt.prompt_metadata or {},
+            "created_at": prompt.created_at.isoformat() if prompt.created_at else None,
+            "updated_at": prompt.updated_at.isoformat() if prompt.updated_at else None
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting prompt: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.put("/api/prompts/{prompt_id}")
+async def update_prompt(prompt_id: str, request: Request, db: Session = Depends(get_db)):
+    """Update a specific prompt"""
+    try:
+        prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        data = await request.json()
+        
+        # Update fields
+        if 'title' in data:
+            prompt.title = data['title']
+        if 'description' in data:
+            prompt.description = data['description']
+        if 'content' in data:
+            prompt.content = data['content']
+        if 'category' in data:
+            prompt.category = data['category']
+        if 'tags' in data:
+            prompt.tags = data['tags']
+        if 'is_public' in data:
+            prompt.is_public = data['is_public']
+        
+        # Update timestamp
+        from datetime import datetime
+        prompt.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(prompt)
+        
+        return {
+            "id": prompt.id,
+            "title": prompt.title,
+            "description": prompt.description,
+            "content": prompt.content,
+            "category": prompt.category,
+            "tags": prompt.tags or [],
+            "is_public": prompt.is_public,
+            "updated_at": prompt.updated_at.isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating prompt: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/api/prompts/{prompt_id}")
+async def delete_prompt(prompt_id: str, db: Session = Depends(get_db)):
+    """Delete a specific prompt"""
+    try:
+        prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        db.delete(prompt)
+        db.commit()
+        
+        return {"message": "Prompt deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting prompt: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @app.get("/api/auth/google")
 async def google_auth(request: Request):
     """Initiate Google OAuth flow"""
@@ -312,6 +409,32 @@ async def serve_prompts(request: Request):
     return templates.TemplateResponse("prompts.html", {
         "request": request,
         "title": "Prompts - Prompt House Premium"
+    })
+
+@app.get("/prompts/create", response_class=HTMLResponse)
+async def serve_create_prompt(request: Request):
+    """Serve the create prompt page"""
+    return templates.TemplateResponse("create_prompt.html", {
+        "request": request,
+        "title": "Create Prompt - Prompt House Premium"
+    })
+
+@app.get("/prompts/{prompt_id}", response_class=HTMLResponse)
+async def serve_view_prompt(request: Request, prompt_id: str):
+    """Serve the view prompt page"""
+    return templates.TemplateResponse("view_prompt.html", {
+        "request": request,
+        "title": "View Prompt - Prompt House Premium",
+        "prompt_id": prompt_id
+    })
+
+@app.get("/prompts/{prompt_id}/edit", response_class=HTMLResponse)
+async def serve_edit_prompt(request: Request, prompt_id: str):
+    """Serve the edit prompt page"""
+    return templates.TemplateResponse("edit_prompt.html", {
+        "request": request,
+        "title": "Edit Prompt - Prompt House Premium",
+        "prompt_id": prompt_id
     })
 
 # Startup event

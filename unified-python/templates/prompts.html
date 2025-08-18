@@ -19,10 +19,10 @@
                 <option>Marketing</option>
             </select>
         </div>
-        <button class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition">
+        <a href="/prompts/create" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition">
             <i class="fas fa-plus mr-2"></i>
             New Prompt
-        </button>
+        </a>
     </div>
 
     <!-- Prompts Grid -->
@@ -61,12 +61,12 @@
                     </div>
                     
                     <div class="mt-4 flex space-x-2">
-                        <button class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition text-sm">
+                        <a :href="`/prompts/${prompt.id}`" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition text-sm text-center">
                             <i class="fas fa-eye mr-2"></i>View
-                        </button>
-                        <button class="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 transition text-sm">
+                        </a>
+                        <a :href="`/prompts/${prompt.id}/edit`" class="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 transition text-sm text-center">
                             <i class="fas fa-edit mr-2"></i>Edit
-                        </button>
+                        </a>
                     </div>
                 </div>
             </template>
