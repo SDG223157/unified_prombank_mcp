@@ -32,8 +32,8 @@ echo "Connecting to database: ${DB_HOST_EXTRACTED}:${DB_PORT_EXTRACTED}"
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     # Try using mysql command directly with extracted credentials (disable SSL verification)
-    # MariaDB client syntax for disabling SSL
-    CONNECTION_ERROR=$(mysql --skip-ssl -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" 2>&1)
+    # MariaDB client syntax for disabling SSL and using compatible auth method
+    CONNECTION_ERROR=$(mysql --skip-ssl --default-auth=mysql_native_password -h"${DB_HOST_EXTRACTED}" -P"${DB_PORT_EXTRACTED}" -u"${DB_USER_EXTRACTED}" -p"${DB_PASS_EXTRACTED}" -e "SELECT 1" "${DB_NAME_EXTRACTED}" 2>&1)
     if [ $? -eq 0 ]; then
         echo "Database connection established"
         break
