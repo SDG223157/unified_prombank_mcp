@@ -33,6 +33,7 @@ export default function PromptsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPromptId, setSelectedPromptId] = useState<string | undefined>();
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'table'>('grid');
   const { isAuthenticated, checkAuth, token } = useAuthStore();
   const router = useRouter();
 
@@ -54,6 +55,20 @@ export default function PromptsPage() {
       fetchPrompts();
     }
   }, [isAuthenticated, filter]);
+
+  // Load saved view mode from localStorage
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('prompts_view_mode');
+    if (savedViewMode && ['grid', 'list', 'table'].includes(savedViewMode)) {
+      setViewMode(savedViewMode as 'grid' | 'list' | 'table');
+    }
+  }, []);
+
+  // Save view mode to localStorage when it changes
+  const handleViewModeChange = (mode: 'grid' | 'list' | 'table') => {
+    setViewMode(mode);
+    localStorage.setItem('prompts_view_mode', mode);
+  };
 
   const fetchPrompts = async () => {
     setIsLoading(true);
@@ -191,48 +206,99 @@ export default function PromptsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Filters and Search */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 mb-6">
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFilter('mine')}
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                filter === 'mine'
-                  ? 'bg-brand-100 text-brand-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              My Prompts
-            </button>
-            <button
-              onClick={() => setFilter('public')}
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                filter === 'public'
-                  ? 'bg-brand-100 text-brand-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Public Prompts
-            </button>
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-3 py-2 text-sm font-medium rounded-md ${
-                filter === 'all'
-                  ? 'bg-brand-100 text-brand-700'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              All Prompts
-            </button>
+        <div className="flex flex-col space-y-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setFilter('mine')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  filter === 'mine'
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                My Prompts
+              </button>
+              <button
+                onClick={() => setFilter('public')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  filter === 'public'
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Public Prompts
+              </button>
+              <button
+                onClick={() => setFilter('all')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  filter === 'all'
+                    ? 'bg-brand-100 text-brand-700'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                All Prompts
+              </button>
+            </div>
+
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search prompts..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input"
+              />
+            </div>
           </div>
 
-          <div className="flex-1 max-w-md">
-            <input
-              type="text"
-              placeholder="Search prompts..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input"
-            />
+          {/* View Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
+              <button
+                onClick={() => handleViewModeChange('grid')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Grid View"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('list')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="List View"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('table')}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Table View"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2zm0-4h5V8h-5v2zM9 8H4v2h5V8z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              {filteredPrompts.length} prompt{filteredPrompts.length !== 1 ? 's' : ''}
+            </div>
           </div>
         </div>
 
@@ -277,132 +343,382 @@ export default function PromptsPage() {
           </div>
         )}
 
-        {/* Prompts Grid */}
+        {/* Prompts Display */}
         {!isLoading && filteredPrompts.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPrompts.map((prompt) => (
-              <div
-                key={prompt.id}
-                className="bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200"
-              >
-                <div className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        {prompt.title}
-                      </h3>
-                      {prompt.description && (
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                          {prompt.description}
-                        </p>
+          <>
+            {/* Grid View */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPrompts.map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    className="bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200"
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {prompt.title}
+                          </h3>
+                          {prompt.description && (
+                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                              {prompt.description}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center space-x-2 ml-4">
+                          {prompt.isPublic && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Public
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Preview */}
+                      <div className="mb-4 relative group">
+                        <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded border">
+                          <pre className="whitespace-pre-wrap font-mono text-xs line-clamp-3">
+                            {prompt.content}
+                          </pre>
+                        </div>
+                        
+                        {/* Quick Actions Overlay */}
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openViewModal(prompt.id);
+                              }}
+                              className="px-3 py-1 bg-white text-gray-700 rounded-full text-xs font-medium hover:bg-gray-100 transition-colors"
+                            >
+                              👁️ View Full
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/prompts/view/${prompt.id}?mode=edit`);
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-medium hover:bg-blue-700 transition-colors"
+                            >
+                              ✏️ Edit
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tags */}
+                      {prompt.tags.length > 0 && (
+                        <div className="mb-4">
+                          <div className="flex flex-wrap gap-1">
+                            {prompt.tags.slice(0, 3).map((tag, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {prompt.tags.length > 3 && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                +{prompt.tags.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       )}
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 ml-4">
-                      {prompt.isPublic && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Public
-                        </span>
-                      )}
+
+                      {/* Metadata */}
+                      <div className="text-xs text-gray-500 mb-4">
+                        <div>Created {new Date(prompt.createdAt).toLocaleDateString()}</div>
+                        {prompt.category && (
+                          <div className="capitalize">Category: {prompt.category}</div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => openViewModal(prompt.id)}
+                            className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                          >
+                            🔍 View
+                          </button>
+                          <button
+                            onClick={() => router.push(`/prompts/view/${prompt.id}?mode=edit`)}
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => router.push(`/prompts/view/${prompt.id}`)}
+                            className="text-sm text-gray-600 hover:text-gray-700 font-medium"
+                          >
+                            🔗 Full Page
+                          </button>
+                        </div>
+                        
+                        <button
+                          onClick={() => deletePrompt(prompt.id)}
+                          className="text-sm text-red-600 hover:text-red-700 font-medium"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
 
-                  {/* Preview */}
-                  <div className="mb-4 relative group">
-                    <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded border">
-                      <pre className="whitespace-pre-wrap font-mono text-xs line-clamp-3">
-                        {prompt.content}
-                      </pre>
-                    </div>
-                    
-                    {/* Quick Actions Overlay */}
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded">
-                      <div className="flex space-x-2">
+            {/* List View */}
+            {viewMode === 'list' && (
+              <div className="space-y-4">
+                {filteredPrompts.map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    className="bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 p-6"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <h3 className="text-xl font-semibold text-gray-900">
+                            {prompt.title}
+                          </h3>
+                          {prompt.isPublic && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Public
+                            </span>
+                          )}
+                          {prompt.category && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                              {prompt.category}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {prompt.description && (
+                          <p className="text-gray-600 mb-4 text-base">
+                            {prompt.description}
+                          </p>
+                        )}
+
+                        {/* Content Preview */}
+                        <div className="mb-4">
+                          <div className="text-sm text-gray-700 bg-gray-50 p-4 rounded border">
+                            <pre className="whitespace-pre-wrap font-mono text-sm line-clamp-2">
+                              {prompt.content}
+                            </pre>
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        {prompt.tags.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex flex-wrap gap-2">
+                              {prompt.tags.map((tag, index) => (
+                                <span
+                                  key={index}
+                                  className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Metadata */}
+                        <div className="text-sm text-gray-500">
+                          <span>Created {new Date(prompt.createdAt).toLocaleDateString()}</span>
+                          <span className="mx-2">•</span>
+                          <span>Updated {new Date(prompt.updatedAt).toLocaleDateString()}</span>
+                          {prompt.user && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span>By {prompt.user.firstName || prompt.user.email}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center space-x-2 ml-6">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openViewModal(prompt.id);
-                          }}
-                          className="px-3 py-1 bg-white text-gray-700 rounded-full text-xs font-medium hover:bg-gray-100 transition-colors"
+                          onClick={() => openViewModal(prompt.id)}
+                          className="px-3 py-2 text-sm font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-md transition-colors"
                         >
-                          👁️ View Full
+                          👁️ View
                         </button>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/prompts/view/${prompt.id}?mode=edit`);
-                          }}
-                          className="px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-medium hover:bg-blue-700 transition-colors"
+                          onClick={() => router.push(`/prompts/view/${prompt.id}?mode=edit`)}
+                          className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
                         >
                           ✏️ Edit
                         </button>
+                        <button
+                          onClick={() => router.push(`/prompts/view/${prompt.id}`)}
+                          className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                        >
+                          🔗 Open
+                        </button>
+                        <button
+                          onClick={() => deletePrompt(prompt.id)}
+                          className="px-3 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                          🗑️ Delete
+                        </button>
                       </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
 
-                  {/* Tags */}
-                  {prompt.tags.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex flex-wrap gap-1">
-                        {prompt.tags.slice(0, 3).map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {prompt.tags.length > 3 && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-                            +{prompt.tags.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Metadata */}
-                  <div className="text-xs text-gray-500 mb-4">
-                    <div>Created {new Date(prompt.createdAt).toLocaleDateString()}</div>
-                    {prompt.category && (
-                      <div className="capitalize">Category: {prompt.category}</div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => openViewModal(prompt.id)}
-                        className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-                      >
-                        🔍 View
-                      </button>
-                      <button
-                        onClick={() => router.push(`/prompts/view/${prompt.id}?mode=edit`)}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => router.push(`/prompts/view/${prompt.id}`)}
-                        className="text-sm text-gray-600 hover:text-gray-700 font-medium"
-                      >
-                        🔗 Full Page
-                      </button>
-                    </div>
-                    
-                    <button
-                      onClick={() => deletePrompt(prompt.id)}
-                      className="text-sm text-red-600 hover:text-red-700 font-medium"
-                    >
-                      🗑️ Delete
-                    </button>
-                  </div>
+            {/* Table View */}
+            {viewMode === 'table' && (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Title
+                        </th>
+                        <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Category
+                        </th>
+                        <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tags
+                        </th>
+                        <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredPrompts.map((prompt) => (
+                        <tr key={prompt.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="max-w-xs">
+                              <div className="text-sm font-medium text-gray-900 truncate">
+                                {prompt.title}
+                              </div>
+                              {prompt.description && (
+                                <div className="text-sm text-gray-500 truncate">
+                                  {prompt.description}
+                                </div>
+                              )}
+                              {/* Mobile-only info */}
+                              <div className="sm:hidden mt-2 space-y-1">
+                                {prompt.isPublic && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                                    Public
+                                  </span>
+                                )}
+                                {prompt.category && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    {prompt.category}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
+                            {prompt.category ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                {prompt.category}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-sm">—</span>
+                            )}
+                          </td>
+                          <td className="hidden lg:table-cell px-6 py-4">
+                            <div className="max-w-xs">
+                              {prompt.tags.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {prompt.tags.slice(0, 2).map((tag, index) => (
+                                    <span
+                                      key={index}
+                                      className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {prompt.tags.length > 2 && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                      +{prompt.tags.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">No tags</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
+                            {prompt.isPublic ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Public
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Private
+                              </span>
+                            )}
+                          </td>
+                          <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(prompt.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => openViewModal(prompt.id)}
+                                className="text-brand-600 hover:text-brand-900"
+                                title="View"
+                              >
+                                👁️
+                              </button>
+                              <button
+                                onClick={() => router.push(`/prompts/view/${prompt.id}?mode=edit`)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Edit"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                onClick={() => router.push(`/prompts/view/${prompt.id}`)}
+                                className="text-gray-600 hover:text-gray-900"
+                                title="Open"
+                              >
+                                🔗
+                              </button>
+                              <button
+                                onClick={() => deletePrompt(prompt.id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Delete"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
