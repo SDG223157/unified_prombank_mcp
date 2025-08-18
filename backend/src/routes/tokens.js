@@ -123,6 +123,9 @@ router.post('/', authenticateToken, createTokenValidation, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userEmail = req.user.email;
+
+    console.log(`🔍 User ${userId} (${userEmail}) requesting their tokens`);
 
     const tokens = await prisma.apiToken.findMany({
       where: { userId },
@@ -135,11 +138,25 @@ router.get('/', authenticateToken, async (req, res) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        userId: true,  // Include for security verification
         // Don't return the actual token
         token: false
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    // Additional security check - verify all returned tokens belong to the user
+    for (const token of tokens) {
+      if (token.userId !== userId) {
+        console.error(`🚨 SECURITY ALERT: Token ${token.id} belongs to user ${token.userId} but was returned for user ${userId}`);
+        return res.status(500).json({
+          error: 'Security Error',
+          message: 'Security error detected'
+        });
+      }
+    }
+
+    console.log(`✅ Returning ${tokens.length} tokens for user ${userId}`);
 
     // Add preview and status for each token
     const tokensWithStatus = tokens.map(token => ({
@@ -147,12 +164,14 @@ router.get('/', authenticateToken, async (req, res) => {
       preview: '••••••••••••',
       status: token.isActive 
         ? (token.expiresAt && token.expiresAt < new Date() ? 'expired' : 'active')
-        : 'inactive'
+        : 'inactive',
+      ownerUserId: token.userId  // For debugging (can be removed in production)
     }));
 
     res.json({
       tokens: tokensWithStatus,
-      count: tokens.length
+      count: tokens.length,
+      userId: userId  // Include current user ID for verification
     });
 
   } catch (error) {
@@ -170,6 +189,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { name, permissions, isActive } = req.body;
     const userId = req.user.id;
+    const userEmail = req.user.email;
+
+    console.log(`🔍 User ${userId} (${userEmail}) attempting to update token ${id}`);
 
     // Check if token exists and belongs to user
     const existingToken = await prisma.apiToken.findFirst({
@@ -177,9 +199,19 @@ router.put('/:id', authenticateToken, async (req, res) => {
     });
 
     if (!existingToken) {
+      console.log(`⚠️  User ${userId} attempted to update non-existent or unauthorized token ${id}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'API token not found'
+      });
+    }
+
+    // Additional security check
+    if (existingToken.userId !== userId) {
+      console.error(`🚨 SECURITY ALERT: User ${userId} attempted to update token ${id} owned by user ${existingToken.userId}`);
+      return res.status(403).json({
+        error: 'Access Denied',
+        message: 'Access denied'
       });
     }
 
@@ -212,9 +244,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
         expiresAt: true,
         isActive: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        userId: true  // Include for verification
       }
     });
+
+    console.log(`✅ Token ${id} updated successfully by user ${userId}`);
 
     res.json({
       message: 'API token updated successfully',
@@ -223,7 +258,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
         preview: '••••••••••••',
         status: updatedToken.isActive 
           ? (updatedToken.expiresAt && updatedToken.expiresAt < new Date() ? 'expired' : 'active')
-          : 'inactive'
+          : 'inactive',
+        ownerUserId: updatedToken.userId  // For debugging
       }
     });
 
@@ -241,6 +277,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
+    const userEmail = req.user.email;
+
+    console.log(`🔍 User ${userId} (${userEmail}) attempting to delete token ${id}`);
 
     // Check if token exists and belongs to user
     const existingToken = await prisma.apiToken.findFirst({
@@ -248,9 +287,19 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     });
 
     if (!existingToken) {
+      console.log(`⚠️  User ${userId} attempted to delete non-existent or unauthorized token ${id}`);
       return res.status(404).json({
         error: 'Not Found',
         message: 'API token not found'
+      });
+    }
+
+    // Additional security check
+    if (existingToken.userId !== userId) {
+      console.error(`🚨 SECURITY ALERT: User ${userId} attempted to delete token ${id} owned by user ${existingToken.userId}`);
+      return res.status(403).json({
+        error: 'Access Denied',
+        message: 'Access denied'
       });
     }
 
@@ -258,6 +307,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     await prisma.apiToken.delete({
       where: { id }
     });
+
+    console.log(`✅ Token ${id} deleted successfully by user ${userId}`);
 
     res.json({
       message: 'API token revoked successfully',
@@ -428,6 +479,45 @@ router.get('/debug-auth', async (req, res) => {
       status: 'error',
       message: 'Debug check failed',
       error: error.message
+    });
+  }
+});
+
+// Debug endpoint to verify token ownership (can be removed in production)
+router.get('/debug/ownership', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = req.user.email;
+    
+    console.log(`🔍 Debug: User ${userId} (${userEmail}) checking token ownership`);
+    
+    // Get all tokens for this user
+    const userTokens = await prisma.apiToken.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        name: true,
+        userId: true,
+        createdAt: true
+      }
+    });
+    
+    // Get count of all tokens in system (for comparison)
+    const totalTokens = await prisma.apiToken.count();
+    
+    res.json({
+      currentUserId: userId,
+      currentUserEmail: userEmail,
+      userTokensCount: userTokens.length,
+      totalTokensInSystem: totalTokens,
+      userTokens: userTokens
+    });
+    
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Debug endpoint failed'
     });
   }
 });

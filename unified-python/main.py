@@ -411,7 +411,19 @@ async def auth_status(request: Request, current_user: User = Depends(get_current
 async def get_tokens(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Get all API tokens for the current user"""
     try:
+        # Log the user ID for security auditing
+        logger.info(f"User {current_user.id} ({current_user.email}) requesting their tokens")
+        
+        # Ensure we only get tokens for the authenticated user
         tokens = db.query(Token).filter(Token.user_id == current_user.id).all()
+        
+        # Additional security check - verify all returned tokens belong to the user
+        for token in tokens:
+            if token.user_id != current_user.id:
+                logger.error(f"SECURITY ALERT: Token {token.id} belongs to user {token.user_id} but was returned for user {current_user.id}")
+                raise HTTPException(status_code=500, detail="Security error detected")
+        
+        logger.info(f"Returning {len(tokens)} tokens for user {current_user.id}")
         
         return {
             "tokens": [
@@ -424,13 +436,19 @@ async def get_tokens(current_user: User = Depends(require_auth), db: Session = D
                     "usage_count": token.usage_count,
                     "permissions": token.permissions or [],
                     "expires_at": token.expires_at.isoformat() if token.expires_at else None,
-                    "created_at": token.created_at.isoformat() if token.created_at else None
+                    "created_at": token.created_at.isoformat() if token.created_at else None,
+                    # Add user_id in response for debugging (can be removed in production)
+                    "owner_user_id": token.user_id
                 }
                 for token in tokens
-            ]
+            ],
+            "user_id": current_user.id,  # Include current user ID for verification
+            "count": len(tokens)
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error getting tokens: {e}")
+        logger.error(f"Error getting tokens for user {current_user.id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/api/tokens")
@@ -491,13 +509,22 @@ async def create_token(request: Request, current_user: User = Depends(require_au
 async def update_token(token_id: str, request: Request, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Update an API token (name, description, status)"""
     try:
+        logger.info(f"User {current_user.id} ({current_user.email}) attempting to update token {token_id}")
+        
+        # Use both token_id and user_id in the filter to ensure ownership
         token = db.query(Token).filter(
             Token.id == token_id,
             Token.user_id == current_user.id
         ).first()
         
         if not token:
+            logger.warning(f"User {current_user.id} attempted to update non-existent or unauthorized token {token_id}")
             raise HTTPException(status_code=404, detail="Token not found")
+        
+        # Additional security check
+        if token.user_id != current_user.id:
+            logger.error(f"SECURITY ALERT: User {current_user.id} attempted to update token {token_id} owned by user {token.user_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
         
         data = await request.json()
         
@@ -517,18 +544,21 @@ async def update_token(token_id: str, request: Request, current_user: User = Dep
         db.commit()
         db.refresh(token)
         
+        logger.info(f"Token {token_id} updated successfully by user {current_user.id}")
+        
         return {
             "id": token.id,
             "name": token.name,
             "description": token.description,
             "is_active": token.is_active,
             "permissions": token.permissions,
-            "updated_at": token.updated_at.isoformat()
+            "updated_at": token.updated_at.isoformat(),
+            "owner_user_id": token.user_id  # For debugging
         }
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating token: {e}")
+        logger.error(f"Error updating token {token_id} for user {current_user.id}: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -536,22 +566,33 @@ async def update_token(token_id: str, request: Request, current_user: User = Dep
 async def delete_token(token_id: str, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Delete an API token"""
     try:
+        logger.info(f"User {current_user.id} ({current_user.email}) attempting to delete token {token_id}")
+        
+        # Use both token_id and user_id in the filter to ensure ownership
         token = db.query(Token).filter(
             Token.id == token_id,
             Token.user_id == current_user.id
         ).first()
         
         if not token:
+            logger.warning(f"User {current_user.id} attempted to delete non-existent or unauthorized token {token_id}")
             raise HTTPException(status_code=404, detail="Token not found")
+        
+        # Additional security check
+        if token.user_id != current_user.id:
+            logger.error(f"SECURITY ALERT: User {current_user.id} attempted to delete token {token_id} owned by user {token.user_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
         
         db.delete(token)
         db.commit()
         
-        return {"message": "Token deleted successfully"}
+        logger.info(f"Token {token_id} deleted successfully by user {current_user.id}")
+        
+        return {"message": "Token deleted successfully", "token_id": token_id}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting token: {e}")
+        logger.error(f"Error deleting token {token_id} for user {current_user.id}: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -559,13 +600,22 @@ async def delete_token(token_id: str, current_user: User = Depends(require_auth)
 async def get_mcp_config(token_id: str, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Get MCP configuration for a specific token"""
     try:
+        logger.info(f"User {current_user.id} ({current_user.email}) requesting MCP config for token {token_id}")
+        
+        # Use both token_id and user_id in the filter to ensure ownership
         token = db.query(Token).filter(
             Token.id == token_id,
             Token.user_id == current_user.id
         ).first()
         
         if not token:
+            logger.warning(f"User {current_user.id} attempted to get MCP config for non-existent or unauthorized token {token_id}")
             raise HTTPException(status_code=404, detail="Token not found")
+        
+        # Additional security check
+        if token.user_id != current_user.id:
+            logger.error(f"SECURITY ALERT: User {current_user.id} attempted to get MCP config for token {token_id} owned by user {token.user_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
         
         # Note: We can't regenerate the raw token, so we provide a template
         mcp_config = {
@@ -585,12 +635,45 @@ async def get_mcp_config(token_id: str, current_user: User = Depends(require_aut
             "token_id": token.id,
             "mcp_config": mcp_config,
             "installation_command": "curl -fsSL https://raw.githubusercontent.com/SDG223157/unified_prombank_mcp/main/install-mcp.sh | bash",
-            "note": "Replace 'YOUR_API_TOKEN_HERE' with your actual API token"
+            "note": "Replace 'YOUR_API_TOKEN_HERE' with your actual API token",
+            "owner_user_id": token.user_id  # For debugging
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error getting MCP config: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Security endpoint to verify token ownership (can be removed in production)
+@app.get("/api/tokens/debug/ownership")
+async def debug_token_ownership(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Debug endpoint to verify token ownership - remove in production"""
+    try:
+        logger.info(f"Debug: User {current_user.id} ({current_user.email}) checking token ownership")
+        
+        # Get all tokens for this user
+        user_tokens = db.query(Token).filter(Token.user_id == current_user.id).all()
+        
+        # Get count of all tokens in system (for comparison)
+        total_tokens = db.query(Token).count()
+        
+        return {
+            "current_user_id": current_user.id,
+            "current_user_email": current_user.email,
+            "user_tokens_count": len(user_tokens),
+            "total_tokens_in_system": total_tokens,
+            "user_tokens": [
+                {
+                    "id": token.id,
+                    "name": token.name,
+                    "user_id": token.user_id,
+                    "created_at": token.created_at.isoformat()
+                }
+                for token in user_tokens
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error in debug endpoint: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # MCP API Endpoints (for Cursor integration)
