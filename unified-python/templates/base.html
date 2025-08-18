@@ -18,12 +18,26 @@
                         🏠 Prompt House Premium
                     </a>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-4" x-data="authData()" x-init="checkAuth()">
                     <a href="/dashboard" class="text-gray-600 hover:text-gray-900">Dashboard</a>
                     <a href="/prompts" class="text-gray-600 hover:text-gray-900">Prompts</a>
-                    <a href="/api/auth/google" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Sign In
-                    </a>
+                    
+                    <!-- Not authenticated -->
+                    <div x-show="!authenticated">
+                        <a href="/api/auth/google" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            <i class="fab fa-google mr-2"></i>Sign In with Google
+                        </a>
+                    </div>
+                    
+                    <!-- Authenticated -->
+                    <div x-show="authenticated" class="flex items-center space-x-3">
+                        <img x-show="user.profile_picture" :src="user.profile_picture" :alt="user.first_name" 
+                             class="w-8 h-8 rounded-full">
+                        <span x-text="user.first_name || user.email" class="text-gray-700"></span>
+                        <button @click="logout()" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -44,5 +58,54 @@
     </footer>
 
     {% block scripts %}{% endblock %}
+    
+    <!-- Global Authentication Script -->
+    <script>
+    function authData() {
+        return {
+            authenticated: false,
+            user: {},
+            async checkAuth() {
+                try {
+                    const response = await fetch('/api/auth/status');
+                    const data = await response.json();
+                    this.authenticated = data.authenticated;
+                    this.user = data.user || {};
+                } catch (error) {
+                    console.error('Auth check failed:', error);
+                    this.authenticated = false;
+                }
+            },
+            async logout() {
+                try {
+                    await fetch('/api/auth/logout');
+                    this.authenticated = false;
+                    this.user = {};
+                    window.location.href = '/';
+                } catch (error) {
+                    console.error('Logout failed:', error);
+                }
+            }
+        }
+    }
+    
+    // Check for auth success/error in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+        // Remove auth param from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Show success message
+        setTimeout(() => {
+            alert('Successfully signed in with Google!');
+        }, 500);
+    } else if (urlParams.get('auth') === 'error') {
+        // Remove auth param from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        // Show error message
+        setTimeout(() => {
+            alert('Authentication failed. Please try again.');
+        }, 500);
+    }
+    </script>
 </body>
 </html>
