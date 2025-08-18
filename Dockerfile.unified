@@ -13,7 +13,7 @@ COPY frontend/package.json ./frontend/
 COPY mcp-server/package.json ./mcp-server/
 
 # Install all dependencies
-RUN npm ci
+RUN npm ci --only=production
 RUN cd backend && npm ci
 RUN cd frontend && npm ci  
 RUN cd mcp-server && npm ci
@@ -28,16 +28,19 @@ COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY --from=deps /app/mcp-server/node_modules ./mcp-server/node_modules
 
-# Copy configuration files
-COPY next.config.js postcss.config.js tailwind.config.js tsconfig.json next-env.d.ts ./
-COPY tsconfig.mcp.json ./
+# Copy configuration files from frontend directory
+COPY frontend/next.config.js frontend/postcss.config.js frontend/tailwind.config.js frontend/tsconfig.json frontend/next-env.d.ts ./frontend/
+COPY mcp-server/tsconfig.json ./mcp-server/
 
 # Copy source code
 COPY backend/src ./backend/src
 COPY backend/prisma ./backend/prisma
+COPY backend/package.json ./backend/
 COPY frontend/src ./frontend/src
 COPY frontend/public ./frontend/public
+COPY frontend/package.json ./frontend/
 COPY mcp-server/src ./mcp-server/src
+COPY mcp-server/package.json ./mcp-server/
 
 # Generate Prisma client
 WORKDIR /app/backend
@@ -75,13 +78,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/backend/package.json ./backend/
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next ./frontend/.next
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/public ./frontend/public
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/package.json ./frontend/
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/node_modules ./frontend/node_modules
 
 # Copy built MCP server
 COPY --from=builder --chown=nextjs:nodejs /app/mcp-server/dist ./mcp-server/dist
 COPY --from=builder --chown=nextjs:nodejs /app/mcp-server/node_modules ./mcp-server/node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/mcp-server/package.json ./mcp-server/
 
-# Copy unified startup script
+# Copy root package.json and startup script
+COPY --chown=nextjs:nodejs package.json ./package.json
 COPY --chown=nextjs:nodejs startup.sh ./startup.sh
 RUN chmod +x ./startup.sh
 
