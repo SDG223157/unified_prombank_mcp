@@ -149,45 +149,95 @@ async def create_prompt(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/auth/google")
 async def google_auth(request: Request):
     """Initiate Google OAuth flow"""
-    if not google_oauth:
+    google_client_id = os.getenv('GOOGLE_CLIENT_ID')
+    if not google_client_id:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
     
     # Generate redirect URI
     redirect_uri = os.getenv('GOOGLE_CALLBACK_URL', f"{os.getenv('BACKEND_URL', 'http://localhost:3000')}/api/auth/google/callback")
     
-    # Redirect to Google OAuth
-    return await google_oauth.authorize_redirect(request, redirect_uri)
+    # Build Google OAuth URL manually
+    from urllib.parse import urlencode
+    import secrets
+    
+    # Generate state for security
+    state = secrets.token_urlsafe(32)
+    request.session['oauth_state'] = state
+    
+    oauth_params = {
+        'client_id': google_client_id,
+        'redirect_uri': redirect_uri,
+        'scope': 'openid email profile',
+        'response_type': 'code',
+        'state': state,
+        'access_type': 'online',
+        'prompt': 'select_account'
+    }
+    
+    google_auth_url = f"https://accounts.google.com/o/oauth2/auth?{urlencode(oauth_params)}"
+    return RedirectResponse(url=google_auth_url)
 
 @app.get("/api/auth/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Handle Google OAuth callback"""
-    if not google_oauth:
-        raise HTTPException(status_code=500, detail="Google OAuth not configured")
-    
     try:
-        # Get the token from Google
-        token = await google_oauth.authorize_access_token(request)
+        # Verify state parameter for security
+        state = request.query_params.get('state')
+        session_state = request.session.get('oauth_state')
         
-        # Get user info from Google
-        user_info = token.get('userinfo')
-        if not user_info:
-            # Fallback: fetch user info manually
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    'https://www.googleapis.com/oauth2/v2/userinfo',
-                    headers={'Authorization': f"Bearer {token['access_token']}"}
-                )
-                user_info = response.json()
+        if not state or not session_state or state != session_state:
+            raise Exception("Invalid state parameter")
+        
+        # Clear the state from session
+        request.session.pop('oauth_state', None)
+        
+        # Get the authorization code from the callback
+        code = request.query_params.get('code')
+        if not code:
+            raise Exception("No authorization code received")
+        
+        # Exchange code for token manually
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                'https://oauth2.googleapis.com/token',
+                data={
+                    'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+                    'client_secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+                    'code': code,
+                    'grant_type': 'authorization_code',
+                    'redirect_uri': os.getenv('GOOGLE_CALLBACK_URL', f"{os.getenv('BACKEND_URL', 'http://localhost:3000')}/api/auth/google/callback")
+                }
+            )
+            
+            if token_response.status_code != 200:
+                raise Exception(f"Token exchange failed: {token_response.text}")
+            
+            token_data = token_response.json()
+            access_token = token_data.get('access_token')
+            
+            if not access_token:
+                raise Exception("No access token received")
+            
+            # Get user info from Google
+            userinfo_response = await client.get(
+                'https://www.googleapis.com/oauth2/v2/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'}
+            )
+            
+            if userinfo_response.status_code != 200:
+                raise Exception(f"Failed to get user info: {userinfo_response.text}")
+            
+            user_info = userinfo_response.json()
         
         # Create or update user in database
         user = await create_or_update_user_from_google(user_info, db)
         
-        # Create JWT token
-        access_token = create_access_token({"sub": user.id, "email": user.email})
+        # Create JWT token for our app
+        jwt_token = create_access_token({"sub": user.id, "email": user.email})
         
         # Store user ID in session
         request.session['user_id'] = user.id
-        request.session['access_token'] = access_token
+        request.session['access_token'] = jwt_token
         
         # Redirect to frontend with success
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
