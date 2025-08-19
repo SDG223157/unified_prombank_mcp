@@ -24,6 +24,21 @@ interface Prompt {
   userId?: string;
 }
 
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  tags: string[];
+  promptId?: string;
+  userId: string;
+  wordCount?: number;
+  charCount?: number;
+  metadata: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface CreatePromptRequest {
   title: string;
   description?: string;
@@ -31,6 +46,15 @@ interface CreatePromptRequest {
   tags: string[];
   isPublic: boolean;
   category?: string;
+}
+
+interface CreateArticleRequest {
+  title: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  promptId?: string;
+  metadata?: any;
 }
 
 interface UpdatePromptRequest {
@@ -303,6 +327,151 @@ class PromptHousePremiumServer {
                 }
               }
             }
+          },
+          {
+            name: 'get_article_list',
+            description: 'Get list of articles with optional filtering and sorting',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                page: {
+                  type: 'number',
+                  description: 'Page number for pagination',
+                  default: 1
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Number of articles per page',
+                  default: 10
+                },
+                sortBy: {
+                  type: 'string',
+                  description: 'Field to sort by',
+                  enum: ['title', 'category', 'createdAt', 'updatedAt'],
+                  default: 'createdAt'
+                },
+                sortOrder: {
+                  type: 'string',
+                  description: 'Sort order',
+                  enum: ['asc', 'desc'],
+                  default: 'desc'
+                },
+                category: {
+                  type: 'string',
+                  description: 'Filter by category'
+                },
+                search: {
+                  type: 'string',
+                  description: 'Search in title and content'
+                }
+              }
+            }
+          },
+          {
+            name: 'get_article',
+            description: 'Get a specific article by ID',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                articleId: {
+                  type: 'string',
+                  description: 'The ID of the article to retrieve'
+                }
+              },
+              required: ['articleId']
+            }
+          },
+          {
+            name: 'create_article',
+            description: 'Create a new article from AI-generated content',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                title: {
+                  type: 'string',
+                  description: 'The title of the article'
+                },
+                content: {
+                  type: 'string',
+                  description: 'The markdown content of the article'
+                },
+                category: {
+                  type: 'string',
+                  description: 'Optional category for the article'
+                },
+                tags: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Tags to categorize the article'
+                },
+                promptId: {
+                  type: 'string',
+                  description: 'Optional ID of the source prompt used to generate this article'
+                },
+                metadata: {
+                  type: 'object',
+                  description: 'Additional metadata (AI model used, generation params, etc.)'
+                }
+              },
+              required: ['title', 'content']
+            }
+          },
+          {
+            name: 'update_article',
+            description: 'Update an existing article',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                articleId: {
+                  type: 'string',
+                  description: 'The ID of the article to update'
+                },
+                title: {
+                  type: 'string',
+                  description: 'Updated title'
+                },
+                content: {
+                  type: 'string',
+                  description: 'Updated content'
+                },
+                category: {
+                  type: 'string',
+                  description: 'Updated category'
+                },
+                tags: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Updated tags'
+                },
+                metadata: {
+                  type: 'object',
+                  description: 'Updated metadata'
+                }
+              },
+              required: ['articleId']
+            }
+          },
+          {
+            name: 'delete_article',
+            description: 'Delete an article',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                articleId: {
+                  type: 'string',
+                  description: 'The ID of the article to delete'
+                }
+              },
+              required: ['articleId']
+            }
+          },
+          {
+            name: 'get_article_stats',
+            description: 'Get article statistics and overview',
+            inputSchema: {
+              type: 'object',
+              properties: {}
+            }
           }
         ]
       };
@@ -336,6 +505,24 @@ class PromptHousePremiumServer {
           
           case 'user_info':
             return await this.handleUserInfo(args);
+
+          case 'get_article_list':
+            return await this.handleGetArticleList(args);
+          
+          case 'get_article':
+            return await this.handleGetArticle(args);
+          
+          case 'create_article':
+            return await this.handleCreateArticle(args);
+          
+          case 'update_article':
+            return await this.handleUpdateArticle(args);
+          
+          case 'delete_article':
+            return await this.handleDeleteArticle(args);
+          
+          case 'get_article_stats':
+            return await this.handleGetArticleStats(args);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -543,6 +730,183 @@ class PromptHousePremiumServer {
           {
             type: 'text',
             text: `❌ Failed to get user info: ${error.response?.data?.detail || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleGetArticleList(args: any) {
+    try {
+      const params = new URLSearchParams();
+      if (args.page) params.append('page', args.page.toString());
+      if (args.limit) params.append('limit', args.limit.toString());
+      if (args.sortBy) params.append('sortBy', args.sortBy);
+      if (args.sortOrder) params.append('sortOrder', args.sortOrder);
+      if (args.category) params.append('category', args.category);
+      if (args.search) params.append('search', args.search);
+
+      const data = await this.makeApiCall(`/articles?${params.toString()}`);
+      
+      const articles = data.articles.map((article: any) => 
+        `📄 **${article.title}**\n` +
+        `   ID: ${article.id}\n` +
+        `   Category: ${article.category || 'Uncategorized'}\n` +
+        `   Words: ${article.wordCount || 0}\n` +
+        `   Created: ${new Date(article.createdAt).toLocaleDateString()}\n` +
+        `   ${article.promptId ? `Source Prompt: ${article.prompt?.title || article.promptId}` : 'Original content'}`
+      ).join('\n\n');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `📚 **Articles (${data.pagination.totalCount} total)**\n\n${articles}\n\n**Pagination:**\nPage ${data.pagination.page} of ${data.pagination.totalPages}\n\n**Available Categories:** ${data.categories.join(', ') || 'None'}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to get articles: ${error.response?.data?.message || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleGetArticle(args: any) {
+    try {
+      const data = await this.makeApiCall(`/articles/${args.articleId}`);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `📄 **${data.title}**\n\n**Details:**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Characters: ${data.charCount || 0}\n• Created: ${new Date(data.createdAt).toLocaleDateString()}\n• Updated: ${new Date(data.updatedAt).toLocaleDateString()}\n${data.promptId ? `• Source Prompt: ${data.prompt?.title || data.promptId}` : ''}\n\n**Content:**\n${data.content}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to get article: ${error.response?.data?.message || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleCreateArticle(args: any) {
+    try {
+      const articleData: CreateArticleRequest = {
+        title: args.title,
+        content: args.content,
+        category: args.category,
+        tags: args.tags || [],
+        promptId: args.promptId,
+        metadata: args.metadata || {}
+      };
+
+      const data = await this.makeApiCall('/articles', 'POST', articleData);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ **Article Created Successfully!**\n\n📄 **${data.title}**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Created: ${new Date(data.createdAt).toLocaleDateString()}\n${data.promptId ? `• Source Prompt: ${data.prompt?.title || data.promptId}` : ''}\n\n**Content Preview:**\n${data.content.substring(0, 200)}${data.content.length > 200 ? '...' : ''}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to create article: ${error.response?.data?.message || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleUpdateArticle(args: any) {
+    try {
+      const updateData: any = {};
+      if (args.title !== undefined) updateData.title = args.title;
+      if (args.content !== undefined) updateData.content = args.content;
+      if (args.category !== undefined) updateData.category = args.category;
+      if (args.tags !== undefined) updateData.tags = args.tags;
+      if (args.metadata !== undefined) updateData.metadata = args.metadata;
+
+      const data = await this.makeApiCall(`/articles/${args.articleId}`, 'PUT', updateData);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ **Article Updated Successfully!**\n\n📄 **${data.title}**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Updated: ${new Date(data.updatedAt).toLocaleDateString()}\n${data.promptId ? `• Source Prompt: ${data.prompt?.title || data.promptId}` : ''}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to update article: ${error.response?.data?.message || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleDeleteArticle(args: any) {
+    try {
+      const data = await this.makeApiCall(`/articles/${args.articleId}`, 'DELETE');
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ **Article Deleted Successfully!**\n\nArticle ID: ${args.articleId}\n\n---\n\n**Response:**\n${JSON.stringify(data, null, 2)}`
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to delete article: ${error.response?.data?.message || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleGetArticleStats(args: any) {
+    try {
+      const data = await this.makeApiCall('/articles/stats/overview');
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `📊 **Article Statistics**\n\n**Overview:**\n• Total Articles: ${data.totalArticles}\n• Total Words: ${data.totalWords.toLocaleString()}\n\n**By Category:**\n${data.categoryBreakdown.map((cat: any) => `• ${cat.category}: ${cat.count}`).join('\n')}\n\n**Recent Articles:**\n${data.recentArticles.map((article: any) => `📄 ${article.title} (${article.wordCount || 0} words)`).join('\n')}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to get article stats: ${error.response?.data?.message || error.message}`
           }
         ]
       };

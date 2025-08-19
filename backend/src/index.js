@@ -28,6 +28,8 @@ const userRoutes = require('./routes/user');
 const teamRoutes = require('./routes/teams');
 const tokenRoutes = require('./routes/tokens');
 const migrateRoutes = require('./routes/migrate');
+const migrateArticlesRoutes = require('./routes/migrate-articles');
+const articleRoutes = require('./routes/articles');
 const passport = require('./config/passport');
 const { getSessionConfig } = require('./config/session');
 const { createAPIRateLimit, createAuthRateLimit } = require('./config/rateLimiting');
@@ -91,6 +93,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/tokens', tokenRoutes);
 app.use('/api/migrate', migrateRoutes);
+app.use('/api/migrate-articles', migrateArticlesRoutes);
+app.use('/api/articles', articleRoutes);
 
 // Serve frontend static files from the unified build
 const frontendBuildPath = path.join(__dirname, '../../frontend/.next');
