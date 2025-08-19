@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text, func
 from database import get_db, connect_with_retry, create_tables, User, Prompt, Token, Article
 from auth import setup_oauth, create_access_token, get_current_user, require_auth, create_or_update_user_from_google, generate_api_token, hash_token, get_current_user_or_token
 import uuid
@@ -1638,14 +1639,14 @@ async def get_article_stats(request: Request, db: Session = Depends(get_db)):
         
         # Get total words
         total_words_result = db.query(
-            db.func.sum(Article.word_count)
+            func.sum(Article.word_count)
         ).filter(Article.user_id == current_user.id).scalar()
         total_words = total_words_result or 0
         
         # Get category breakdown
         category_stats = db.query(
             Article.category,
-            db.func.count(Article.id).label('count')
+            func.count(Article.id).label('count')
         ).filter(Article.user_id == current_user.id).group_by(Article.category).all()
         
         category_breakdown = [

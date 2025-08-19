@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-from sqlalchemy import create_engine, text, Column, String, DateTime, Boolean, Integer, Text, JSON
+from sqlalchemy import create_engine, text, Column, String, DateTime, Boolean, Integer, Text, JSON, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import OperationalError
