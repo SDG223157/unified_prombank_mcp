@@ -478,8 +478,9 @@ async def logout(request: Request):
     return {"message": "Logged out successfully"}
 
 @app.get("/api/user/profile")
-async def get_user_profile(request: Request, current_user: User = Depends(get_current_user)):
+async def get_user_profile(request: Request, db: Session = Depends(get_db)):
     """Get user profile"""
+    current_user = get_current_user_or_token(request, db)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -496,8 +497,12 @@ async def get_user_profile(request: Request, current_user: User = Depends(get_cu
     }
 
 @app.get("/api/user/stats")
-async def get_user_stats(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+async def get_user_stats(request: Request, db: Session = Depends(get_db)):
     """Get user statistics including prompt counts"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     try:
         # Count total prompts
         total_prompts = db.query(Prompt).filter(Prompt.user_id == current_user.id).count()
