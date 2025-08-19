@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0" x-data="createArticleData()" x-init="loadCategories()">
+    <!-- Header -->
+    <div class="mb-8">
+        <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-2">
+            <a href="/articles" class="hover:text-gray-700">Articles</a>
+            <i class="fas fa-chevron-right text-xs"></i>
+            <span>Create Article</span>
+        </nav>
+        <h1 class="text-3xl font-bold text-gray-900">Create New Article</h1>
+        <p class="text-gray-600 mt-2">Save your AI-generated content or create original articles</p>
+    </div>
+
+    <!-- Create Form -->
+    <div class="bg-white rounded-lg shadow">
+        <form @submit.prevent="createArticle()" class="p-6 space-y-6">
+            <!-- Title -->
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                <input type="text" id="title" x-model="article.title" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                       placeholder="Enter article title...">
+            </div>
+
+            <!-- Category and Tags -->
+            <div class="grid md:grid-cols-2 gap-4">
+                <div>
+                    <label for="category" class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <input type="text" id="category" x-model="article.category" list="categories"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                           placeholder="e.g., Research, Analysis, Documentation">
+                    <datalist id="categories">
+                        <template x-for="category in availableCategories" :key="category">
+                            <option :value="category"></option>
+                        </template>
+                    </datalist>
+                </div>
+                <div>
+                    <label for="tags" class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                    <input type="text" id="tags" x-model="tagsInput" @input="updateTags()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                           placeholder="tag1, tag2, tag3">
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        <template x-for="tag in article.tags" :key="tag">
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                                <span x-text="tag"></span>
+                                <button type="button" @click="removeTag(tag)" class="ml-1 text-green-600 hover:text-green-800">×</button>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Editor -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label for="content" class="block text-sm font-medium text-gray-700">Content *</label>
+                    <div class="flex space-x-2">
+                        <button type="button" @click="editorMode = 'edit'" 
+                                :class="editorMode === 'edit' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded text-sm transition">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </button>
+                        <button type="button" @click="editorMode = 'preview'" 
+                                :class="editorMode === 'preview' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded text-sm transition">
+                            <i class="fas fa-eye mr-1"></i>Preview
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Editor -->
+                <div x-show="editorMode === 'edit'">
+                    <textarea id="content" x-model="article.content" required rows="20"
+                              @input="updateCounts()"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
+                              placeholder="Paste your AI-generated content here or write original content in Markdown..."></textarea>
+                </div>
+                
+                <!-- Preview -->
+                <div x-show="editorMode === 'preview'" 
+                     class="min-h-[500px] border border-gray-300 rounded-lg p-4 bg-gray-50">
+                    <div class="prose max-w-none" x-html="renderMarkdown(article.content)"></div>
+                </div>
+                
+                <!-- Word/Character Count -->
+                <div class="text-sm text-gray-500 mt-2">
+                    <span x-text="wordCount"></span> words, 
+                    <span x-text="charCount"></span> characters
+                </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="bg-blue-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-blue-800 mb-2">💡 Tips for Creating Articles</h3>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>• Use Markdown formatting for rich content (headers, bold, italic, code blocks)</li>
+                    <li>• Add relevant tags to help organize and find your articles later</li>
+                    <li>• Use descriptive titles that include the topic and date if relevant</li>
+                    <li>• Categories help group related articles together</li>
+                </ul>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-between pt-6 border-t border-gray-200">
+                <a href="/articles" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Articles
+                </a>
+                <button type="submit" :disabled="creating"
+                        class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition disabled:opacity-50">
+                    <i class="fas fa-plus mr-2"></i>
+                    <span x-text="creating ? 'Creating...' : 'Create Article'"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function createArticleData() {
+    return {
+        article: {
+            title: '',
+            content: '',
+            category: '',
+            tags: [],
+            metadata: {}
+        },
+        creating: false,
+        editorMode: 'edit',
+        tagsInput: '',
+        availableCategories: [],
+        wordCount: 0,
+        charCount: 0,
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/articles', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.availableCategories = data.categories || [];
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async createArticle() {
+            this.creating = true;
+            try {
+                const response = await fetch('/api/articles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        title: this.article.title,
+                        content: this.article.content,
+                        category: this.article.category || null,
+                        tags: this.article.tags,
+                        metadata: this.article.metadata
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to create article');
+                }
+                
+                const newArticle = await response.json();
+                
+                // Redirect to the new article
+                window.location.href = `/articles/${newArticle.id}`;
+                
+            } catch (error) {
+                console.error('Error creating article:', error);
+                alert('Failed to create article: ' + error.message);
+            } finally {
+                this.creating = false;
+            }
+        },
+        
+        updateTags() {
+            this.article.tags = this.tagsInput
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag.length > 0);
+        },
+        
+        removeTag(tagToRemove) {
+            this.article.tags = this.article.tags.filter(tag => tag !== tagToRemove);
+            this.tagsInput = this.article.tags.join(', ');
+        },
+        
+        updateCounts() {
+            const content = this.article.content || '';
+            this.charCount = content.length;
+            this.wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+        },
+        
+        renderMarkdown(content) {
+            if (!content) return '<p class="text-gray-500 italic">No content to preview</p>';
+            
+            // Simple markdown rendering for preview
+            return content
+                .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold mb-4">$1</h1>')
+                .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-semibold mb-3">$1</h2>')
+                .replace(/^### (.+)$/gm, '<h3 class="text-xl font-medium mb-2">$1</h3>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>')
+                .replace(/\n\n/g, '</p><p class="mb-4">')
+                .replace(/\n/g, '<br>')
+                .replace(/^(.+)/, '<p class="mb-4">$1')
+                .concat('</p>');
+        }
+    };
+}
+</script>
+{% endblock %}

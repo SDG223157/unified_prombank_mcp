@@ -8,7 +8,7 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid md:grid-cols-4 gap-6 mb-8">
+    <div class="grid md:grid-cols-5 gap-6 mb-8">
         <div class="bg-white p-6 rounded-lg shadow">
             <div class="flex items-center">
                 <div class="text-blue-500 text-2xl mr-4">
@@ -53,6 +53,19 @@
                 <div>
                     <p class="text-2xl font-bold">0</p>
                     <p class="text-gray-600">API Calls</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow" x-data="{ articleStats: {} }" x-init="loadArticleStats()">
+            <div class="flex items-center">
+                <div class="text-indigo-500 text-2xl mr-4">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold" x-text="articleStats.total_articles || 0"></p>
+                    <p class="text-gray-600">Articles</p>
+                    <p class="text-xs text-gray-500" x-text="(articleStats.total_words || 0).toLocaleString() + ' words'"></p>
                 </div>
             </div>
         </div>
@@ -114,6 +127,24 @@ function promptsData() {
                 this.loading = false;
             }
         }
+    }
+}
+
+// Global function for loading article stats
+async function loadArticleStats() {
+    try {
+        const response = await fetch('/api/articles/stats/overview', {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            this.articleStats = await response.json();
+        } else {
+            this.articleStats = { total_articles: 0, total_words: 0 };
+        }
+    } catch (error) {
+        console.error('Error loading article stats:', error);
+        this.articleStats = { total_articles: 0, total_words: 0 };
     }
 }
 </script>

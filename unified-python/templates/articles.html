@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+<div class="px-4 py-6 sm:px-0">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">📄 Articles</h1>
+        <p class="text-gray-600 mt-2">Manage your AI-generated content and saved articles</p>
+    </div>
+
+    <!-- Articles Display with Controls -->
+    <div id="articles-display" x-data="articlesDisplayData()" x-init="init(); loadArticles()">
+        <!-- Actions Bar -->
+        <div class="flex flex-col space-y-4 mb-6">
+            <div class="flex justify-between items-center">
+                <div class="flex space-x-4">
+                    <input type="text" placeholder="Search articles..." 
+                           x-model="searchQuery"
+                           @input="debounceSearch()"
+                           class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select x-model="selectedCategory" @change="loadArticles()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Categories</option>
+                        <template x-for="category in categories" :key="category">
+                            <option :value="category" x-text="category"></option>
+                        </template>
+                    </select>
+                    <select x-model="sortBy" @change="loadArticles()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="createdAt">Created Date</option>
+                        <option value="updatedAt">Updated Date</option>
+                        <option value="title">Title</option>
+                        <option value="category">Category</option>
+                    </select>
+                    <select x-model="sortOrder" @change="loadArticles()"
+                            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="desc">Newest First</option>
+                        <option value="asc">Oldest First</option>
+                    </select>
+                </div>
+                <a href="/articles/create" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition">
+                    <i class="fas fa-plus mr-2"></i>
+                    New Article
+                </a>
+            </div>
+
+            <!-- View Mode Toggle -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg">
+                    <button @click="viewMode = 'grid'" 
+                            :class="viewMode === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                            class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                            title="Grid View">
+                        <i class="fas fa-th text-sm"></i>
+                    </button>
+                    <button @click="viewMode = 'list'" 
+                            :class="viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                            class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                            title="List View">
+                        <i class="fas fa-list text-sm"></i>
+                    </button>
+                    <button @click="viewMode = 'table'" 
+                            :class="viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'"
+                            class="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                            title="Table View">
+                        <i class="fas fa-table text-sm"></i>
+                    </button>
+                </div>
+                
+                <div class="text-sm text-gray-500">
+                    <span x-text="articles.length"></span> article<span x-text="articles.length !== 1 ? 's' : ''"></span>
+                    <span x-show="totalWords > 0" class="ml-2">
+                        • <span x-text="totalWords.toLocaleString()"></span> words total
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading State -->
+        <div x-show="loading" class="text-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Loading articles...</p>
+        </div>
+        
+        <!-- Empty State -->
+        <div x-show="!loading && articles.length === 0" class="text-center py-12">
+            <div class="text-gray-400 text-6xl mb-4">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <h3 class="text-xl font-medium text-gray-900 mb-2">No articles found</h3>
+            <p class="text-gray-600 mb-6">Save your AI-generated content as articles</p>
+            <a href="/articles/create" class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition">
+                Create Your First Article
+            </a>
+        </div>
+        
+        <!-- Grid View -->
+        <div x-show="!loading && articles.length > 0 && viewMode === 'grid'" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="article in articles" :key="article.id">
+                <div class="bg-white rounded-lg shadow hover:shadow-md transition p-6">
+                    <div class="flex items-start justify-between mb-3">
+                        <h3 class="font-semibold text-gray-900 text-lg line-clamp-2" x-text="article.title"></h3>
+                        <div class="flex items-center space-x-2">
+                            <button @click="deleteArticle(article.id)" 
+                                    class="text-red-500 hover:text-red-700 transition"
+                                    title="Delete Article">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 mb-4">
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fas fa-folder mr-2"></i>
+                            <span x-text="article.category || 'Uncategorized'"></span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fas fa-calendar mr-2"></i>
+                            <span x-text="formatDate(article.created_at)"></span>
+                        </div>
+                        <div class="flex items-center text-sm text-gray-500">
+                            <i class="fas fa-file-word mr-2"></i>
+                            <span x-text="(article.word_count || 0).toLocaleString()"></span> words
+                        </div>
+                        <div x-show="article.prompt" class="flex items-center text-sm text-blue-600">
+                            <i class="fas fa-link mr-2"></i>
+                            <span>From: </span><span x-text="article.prompt?.title || 'Unknown Prompt'"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-1 mb-4">
+                        <template x-for="tag in (article.tags || [])" :key="tag">
+                            <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs" x-text="tag"></span>
+                        </template>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <a :href="`/articles/${article.id}`" 
+                           class="flex-1 bg-blue-500 text-white text-center py-2 rounded hover:bg-blue-600 transition">
+                            <i class="fas fa-eye mr-2"></i>View
+                        </a>
+                        <a :href="`/articles/${article.id}/edit`" 
+                           class="flex-1 bg-gray-500 text-white text-center py-2 rounded hover:bg-gray-600 transition">
+                            <i class="fas fa-edit mr-2"></i>Edit
+                        </a>
+                    </div>
+                </div>
+            </template>
+        </div>
+        
+        <!-- List View -->
+        <div x-show="!loading && articles.length > 0 && viewMode === 'list'" class="space-y-4">
+            <template x-for="article in articles" :key="article.id">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 text-xl mb-2" x-text="article.title"></h3>
+                            <div class="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+                                <span>
+                                    <i class="fas fa-folder mr-1"></i>
+                                    <span x-text="article.category || 'Uncategorized'"></span>
+                                </span>
+                                <span>
+                                    <i class="fas fa-calendar mr-1"></i>
+                                    <span x-text="formatDate(article.created_at)"></span>
+                                </span>
+                                <span>
+                                    <i class="fas fa-file-word mr-1"></i>
+                                    <span x-text="(article.word_count || 0).toLocaleString()"></span> words
+                                </span>
+                                <span x-show="article.prompt">
+                                    <i class="fas fa-link mr-1"></i>
+                                    From: <span x-text="article.prompt?.title || 'Unknown'"></span>
+                                </span>
+                            </div>
+                            <div class="flex flex-wrap gap-1 mb-3">
+                                <template x-for="tag in (article.tags || [])" :key="tag">
+                                    <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs" x-text="tag"></span>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 ml-4">
+                            <a :href="`/articles/${article.id}`" 
+                               class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                                <i class="fas fa-eye mr-2"></i>View
+                            </a>
+                            <a :href="`/articles/${article.id}/edit`" 
+                               class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+                                <i class="fas fa-edit mr-2"></i>Edit
+                            </a>
+                            <button @click="deleteArticle(article.id)" 
+                                    class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
+                                <i class="fas fa-trash mr-2"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        
+        <!-- Table View -->
+        <div x-show="!loading && articles.length > 0 && viewMode === 'table'" class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Words</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="article in articles" :key="article.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900" x-text="article.title"></div>
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    <template x-for="tag in (article.tags || [])" :key="tag">
+                                        <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs" x-text="tag"></span>
+                                    </template>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm text-gray-900" x-text="article.category || 'Uncategorized'"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm text-gray-900" x-text="(article.word_count || 0).toLocaleString()"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm text-gray-900" x-text="formatDate(article.created_at)"></span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span x-show="article.prompt" class="text-sm text-blue-600" x-text="article.prompt?.title || 'Unknown'"></span>
+                                <span x-show="!article.prompt" class="text-sm text-gray-500">Original</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex space-x-2">
+                                    <a :href="`/articles/${article.id}`" 
+                                       class="text-blue-600 hover:text-blue-800 transition" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a :href="`/articles/${article.id}/edit`" 
+                                       class="text-gray-600 hover:text-gray-800 transition" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button @click="deleteArticle(article.id)" 
+                                            class="text-red-600 hover:text-red-800 transition" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div x-show="!loading && articles.length > 0" class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                Showing <span x-text="((currentPage - 1) * pageSize) + 1"></span> to 
+                <span x-text="Math.min(currentPage * pageSize, totalCount)"></span> of 
+                <span x-text="totalCount"></span> articles
+            </div>
+            <div class="flex space-x-2">
+                <button @click="loadPage(currentPage - 1)" 
+                        :disabled="currentPage <= 1"
+                        :class="currentPage <= 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                        class="px-3 py-2 border border-gray-300 rounded-md transition">
+                    Previous
+                </button>
+                <span class="px-3 py-2 bg-blue-500 text-white rounded-md">
+                    <span x-text="currentPage"></span> / <span x-text="totalPages"></span>
+                </span>
+                <button @click="loadPage(currentPage + 1)" 
+                        :disabled="currentPage >= totalPages"
+                        :class="currentPage >= totalPages ? 'bg-gray-200 text-gray-400' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                        class="px-3 py-2 border border-gray-300 rounded-md transition">
+                    Next
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function articlesDisplayData() {
+    return {
+        articles: [],
+        categories: [],
+        loading: false,
+        viewMode: 'grid',
+        searchQuery: '',
+        selectedCategory: '',
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        currentPage: 1,
+        pageSize: 12,
+        totalCount: 0,
+        totalPages: 1,
+        totalWords: 0,
+        searchTimeout: null,
+        
+        init() {
+            // Load view mode preference
+            this.viewMode = localStorage.getItem('articles-view-mode') || 'grid';
+        },
+        
+        async loadArticles() {
+            this.loading = true;
+            try {
+                const params = new URLSearchParams({
+                    page: this.currentPage.toString(),
+                    limit: this.pageSize.toString(),
+                    sortBy: this.sortBy,
+                    sortOrder: this.sortOrder
+                });
+                
+                if (this.selectedCategory) {
+                    params.append('category', this.selectedCategory);
+                }
+                
+                if (this.searchQuery.trim()) {
+                    params.append('search', this.searchQuery.trim());
+                }
+                
+                const response = await fetch(`/api/articles?${params}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/api/auth/google';
+                        return;
+                    }
+                    throw new Error('Failed to load articles');
+                }
+                
+                const data = await response.json();
+                this.articles = data.articles || [];
+                this.categories = data.categories || [];
+                this.totalCount = data.pagination?.total_count || 0;
+                this.totalPages = data.pagination?.total_pages || 1;
+                this.currentPage = data.pagination?.page || 1;
+                
+                // Load stats for total words
+                await this.loadStats();
+                
+            } catch (error) {
+                console.error('Error loading articles:', error);
+                alert('Failed to load articles: ' + error.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async loadStats() {
+            try {
+                const response = await fetch('/api/articles/stats/overview', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const stats = await response.json();
+                    this.totalWords = stats.total_words || 0;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        },
+        
+        async deleteArticle(articleId) {
+            if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/articles/${articleId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete article');
+                }
+                
+                // Reload articles
+                await this.loadArticles();
+                
+            } catch (error) {
+                console.error('Error deleting article:', error);
+                alert('Failed to delete article: ' + error.message);
+            }
+        },
+        
+        loadPage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+                this.currentPage = page;
+                this.loadArticles();
+            }
+        },
+        
+        debounceSearch() {
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                this.currentPage = 1;
+                this.loadArticles();
+            }, 500);
+        },
+        
+        formatDate(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleDateString();
+        }
+    };
+}
+</script>
+{% endblock %}

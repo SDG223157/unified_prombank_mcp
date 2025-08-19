@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0" x-data="viewArticleData('{{ article_id }}')" x-init="loadArticle()">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-2">
+                    <a href="/articles" class="hover:text-gray-700">Articles</a>
+                    <i class="fas fa-chevron-right text-xs"></i>
+                    <span>View Article</span>
+                </nav>
+                <h1 class="text-3xl font-bold text-gray-900" x-text="article.title"></h1>
+            </div>
+            <div class="flex space-x-3">
+                <a :href="`/articles/${article.id}/edit`" 
+                   class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </a>
+                <button @click="deleteArticle()" 
+                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition">
+                    <i class="fas fa-trash mr-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="loading" class="text-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+        <p class="mt-4 text-gray-600">Loading article...</p>
+    </div>
+
+    <!-- Article Content -->
+    <div x-show="!loading && article.id" class="space-y-6">
+        <!-- Article Metadata -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Article Information</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Category</label>
+                        <p class="text-gray-900" x-text="article.category || 'Uncategorized'"></p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Created</label>
+                        <p class="text-gray-900" x-text="formatDate(article.created_at)"></p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Last Updated</label>
+                        <p class="text-gray-900" x-text="formatDate(article.updated_at)"></p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Word Count</label>
+                        <p class="text-gray-900" x-text="(article.word_count || 0).toLocaleString()"></p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Character Count</label>
+                        <p class="text-gray-900" x-text="(article.char_count || 0).toLocaleString()"></p>
+                    </div>
+                    <div x-show="article.prompt">
+                        <label class="text-sm font-medium text-gray-500">Source Prompt</label>
+                        <p class="text-blue-600" x-text="article.prompt?.title || 'Unknown Prompt'"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tags -->
+            <div x-show="article.tags && article.tags.length > 0" class="mt-4">
+                <label class="text-sm font-medium text-gray-500">Tags</label>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <template x-for="tag in (article.tags || [])" :key="tag">
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm" x-text="tag"></span>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Article Content -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Content</h2>
+                    <div class="flex space-x-2">
+                        <button @click="viewMode = 'rendered'" 
+                                :class="viewMode === 'rendered' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded text-sm transition">
+                            <i class="fas fa-eye mr-1"></i>Rendered
+                        </button>
+                        <button @click="viewMode = 'markdown'" 
+                                :class="viewMode === 'markdown' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-3 py-1 rounded text-sm transition">
+                            <i class="fas fa-code mr-1"></i>Markdown
+                        </button>
+                        <button @click="copyContent()" 
+                                class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300 transition">
+                            <i class="fas fa-copy mr-1"></i>Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rendered Content -->
+            <div x-show="viewMode === 'rendered'" class="p-6">
+                <div class="prose max-w-none" x-html="renderMarkdown(article.content)"></div>
+            </div>
+            
+            <!-- Markdown Content -->
+            <div x-show="viewMode === 'markdown'" class="p-0">
+                <pre class="bg-gray-50 p-6 text-sm overflow-x-auto"><code x-text="article.content"></code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div x-show="!loading && !article.id" class="text-center py-12">
+        <div class="text-gray-400 text-6xl mb-4">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h3 class="text-xl font-medium text-gray-900 mb-2">Article not found</h3>
+        <p class="text-gray-600 mb-6">The article you're looking for doesn't exist or you don't have permission to view it.</p>
+        <a href="/articles" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition">
+            Back to Articles
+        </a>
+    </div>
+</div>
+
+<script>
+function viewArticleData(articleId) {
+    return {
+        article: {},
+        loading: false,
+        viewMode: 'rendered',
+        
+        async loadArticle() {
+            this.loading = true;
+            try {
+                const response = await fetch(`/api/articles/${articleId}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/api/auth/google';
+                        return;
+                    }
+                    throw new Error('Failed to load article');
+                }
+                
+                this.article = await response.json();
+                
+            } catch (error) {
+                console.error('Error loading article:', error);
+                this.article = {};
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async deleteArticle() {
+            if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/articles/${this.article.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete article');
+                }
+                
+                // Redirect to articles list
+                window.location.href = '/articles';
+                
+            } catch (error) {
+                console.error('Error deleting article:', error);
+                alert('Failed to delete article: ' + error.message);
+            }
+        },
+        
+        copyContent() {
+            navigator.clipboard.writeText(this.article.content).then(() => {
+                // Show temporary success message
+                const button = event.target.closest('button');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+                button.classList.add('bg-green-200', 'text-green-700');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.classList.remove('bg-green-200', 'text-green-700');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy content:', err);
+                alert('Failed to copy content to clipboard');
+            });
+        },
+        
+        renderMarkdown(content) {
+            if (!content) return '';
+            
+            // Simple markdown rendering for basic formatting
+            return content
+                .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold mb-4">$1</h1>')
+                .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-semibold mb-3">$1</h2>')
+                .replace(/^### (.+)$/gm, '<h3 class="text-xl font-medium mb-2">$1</h3>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>')
+                .replace(/\n\n/g, '</p><p class="mb-4">')
+                .replace(/\n/g, '<br>')
+                .replace(/^(.+)/, '<p class="mb-4">$1')
+                .concat('</p>');
+        },
+        
+        formatDate(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    };
+}
+</script>
+{% endblock %}

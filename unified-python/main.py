@@ -1824,6 +1824,41 @@ async def serve_import(request: Request):
         "title": "Import Prompts - Prompt House Premium"
     })
 
+# Article Frontend Routes
+@app.get("/articles", response_class=HTMLResponse)
+async def serve_articles(request: Request):
+    """Serve the articles list page"""
+    return templates.TemplateResponse("articles.html", {
+        "request": request,
+        "title": "Articles - Prompt House Premium"
+    })
+
+@app.get("/articles/create", response_class=HTMLResponse)
+async def serve_create_article(request: Request):
+    """Serve the create article page"""
+    return templates.TemplateResponse("create_article.html", {
+        "request": request,
+        "title": "Create Article - Prompt House Premium"
+    })
+
+@app.get("/articles/{article_id}", response_class=HTMLResponse)
+async def serve_view_article(request: Request, article_id: str):
+    """Serve the view article page"""
+    return templates.TemplateResponse("view_article.html", {
+        "request": request,
+        "title": "View Article - Prompt House Premium",
+        "article_id": article_id
+    })
+
+@app.get("/articles/{article_id}/edit", response_class=HTMLResponse)
+async def serve_edit_article(request: Request, article_id: str):
+    """Serve the edit article page"""
+    return templates.TemplateResponse("edit_article.html", {
+        "request": request,
+        "title": "Edit Article - Prompt House Premium",
+        "article_id": article_id
+    })
+
 # Startup event
 @app.on_event("startup")
 async def startup_event():
