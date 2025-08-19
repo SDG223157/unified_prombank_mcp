@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
-from database import get_db, connect_with_retry, create_tables, User, Prompt, Token
+from database import get_db, connect_with_retry, create_tables, User, Prompt, Token, Article
 from auth import setup_oauth, create_access_token, get_current_user, require_auth, create_or_update_user_from_google, generate_api_token, hash_token, get_current_user_or_token
 import uuid
 import httpx
@@ -42,6 +42,27 @@ class BulkImportRequest(BaseModel):
 class URLImportRequest(BaseModel):
     url: str
     format: str = "json"  # json, csv, md, or auto-detect
+
+class CreateArticleRequest(BaseModel):
+    title: str
+    content: str
+    category: str = None
+    tags: List[str] = []
+    prompt_id: str = None
+    metadata: Dict[str, Any] = {}
+
+class UpdateArticleRequest(BaseModel):
+    title: str = None
+    content: str = None
+    category: str = None
+    tags: List[str] = None
+    metadata: Dict[str, Any] = None
+
+def calculate_counts(content: str) -> tuple:
+    """Calculate word and character counts for content"""
+    char_count = len(content)
+    word_count = len(content.strip().split()) if content.strip() else 0
+    return word_count, char_count
 
 def parse_markdown_prompts(markdown_content: str) -> List[Dict[str, Any]]:
     """
@@ -1277,6 +1298,462 @@ async def mcp_import_prompts(request: Request, db: Session = Depends(get_db)):
         logger.error(f"Error in MCP import: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail="MCP import failed")
+
+# Article API Routes
+@app.get("/api/articles")
+async def get_articles(
+    request: Request,
+    page: int = 1,
+    limit: int = 10,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    category: str = None,
+    search: str = None,
+    db: Session = Depends(get_db)
+):
+    """Get articles with pagination and filtering"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if limit < 1 or limit > 100:
+            limit = 10
+        
+        # Validate sort parameters
+        valid_sort_fields = ["title", "category", "created_at", "updated_at"]
+        if sort_by not in valid_sort_fields:
+            sort_by = "created_at"
+        
+        if sort_order not in ["asc", "desc"]:
+            sort_order = "desc"
+        
+        # Build query
+        query = db.query(Article).filter(Article.user_id == current_user.id)
+        
+        # Apply filters
+        if category:
+            query = query.filter(Article.category == category)
+        
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.filter(
+                (Article.title.like(search_pattern)) |
+                (Article.content.like(search_pattern))
+            )
+        
+        # Get total count before pagination
+        total_count = query.count()
+        
+        # Apply sorting
+        if sort_order == "desc":
+            query = query.order_by(getattr(Article, sort_by).desc())
+        else:
+            query = query.order_by(getattr(Article, sort_by).asc())
+        
+        # Apply pagination
+        offset = (page - 1) * limit
+        articles = query.offset(offset).limit(limit).all()
+        
+        # Get unique categories for filtering
+        categories_query = db.query(Article.category).filter(
+            Article.user_id == current_user.id,
+            Article.category.isnot(None)
+        ).distinct()
+        categories = [cat[0] for cat in categories_query.all()]
+        
+        # Format response
+        articles_data = []
+        for article in articles:
+            # Get source prompt info if available
+            prompt_info = None
+            if article.prompt_id:
+                prompt = db.query(Prompt).filter(Prompt.id == article.prompt_id).first()
+                if prompt:
+                    prompt_info = {"id": prompt.id, "title": prompt.title}
+            
+            articles_data.append({
+                "id": article.id,
+                "title": article.title,
+                "category": article.category,
+                "tags": article.tags,
+                "word_count": article.word_count,
+                "char_count": article.char_count,
+                "created_at": article.created_at.isoformat() if article.created_at else None,
+                "updated_at": article.updated_at.isoformat() if article.updated_at else None,
+                "prompt": prompt_info
+            })
+        
+        return {
+            "articles": articles_data,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total_count": total_count,
+                "total_pages": (total_count + limit - 1) // limit,
+                "has_next_page": page < ((total_count + limit - 1) // limit),
+                "has_prev_page": page > 1
+            },
+            "categories": sorted(categories)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching articles: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch articles")
+
+@app.get("/api/articles/{article_id}")
+async def get_article(article_id: str, request: Request, db: Session = Depends(get_db)):
+    """Get a specific article"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        article = db.query(Article).filter(
+            Article.id == article_id,
+            Article.user_id == current_user.id
+        ).first()
+        
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Get source prompt info if available
+        prompt_info = None
+        if article.prompt_id:
+            prompt = db.query(Prompt).filter(Prompt.id == article.prompt_id).first()
+            if prompt:
+                prompt_info = {
+                    "id": prompt.id,
+                    "title": prompt.title,
+                    "description": prompt.description
+                }
+        
+        return {
+            "id": article.id,
+            "title": article.title,
+            "content": article.content,
+            "category": article.category,
+            "tags": article.tags,
+            "prompt_id": article.prompt_id,
+            "word_count": article.word_count,
+            "char_count": article.char_count,
+            "metadata": article.metadata,
+            "created_at": article.created_at.isoformat() if article.created_at else None,
+            "updated_at": article.updated_at.isoformat() if article.updated_at else None,
+            "prompt": prompt_info
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching article: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch article")
+
+@app.post("/api/articles")
+async def create_article(
+    article_data: CreateArticleRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Create a new article"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Verify prompt exists and belongs to user if prompt_id is provided
+        if article_data.prompt_id:
+            prompt = db.query(Prompt).filter(
+                Prompt.id == article_data.prompt_id,
+                Prompt.user_id == current_user.id
+            ).first()
+            
+            if not prompt:
+                raise HTTPException(status_code=400, detail="Prompt not found or does not belong to user")
+        
+        # Calculate word and character counts
+        word_count, char_count = calculate_counts(article_data.content)
+        
+        # Create article
+        article = Article(
+            id=str(uuid.uuid4()),
+            title=article_data.title,
+            content=article_data.content,
+            category=article_data.category,
+            tags=article_data.tags,
+            prompt_id=article_data.prompt_id,
+            user_id=current_user.id,
+            word_count=word_count,
+            char_count=char_count,
+            metadata=article_data.metadata
+        )
+        
+        db.add(article)
+        db.commit()
+        db.refresh(article)
+        
+        # Get source prompt info if available
+        prompt_info = None
+        if article.prompt_id:
+            prompt = db.query(Prompt).filter(Prompt.id == article.prompt_id).first()
+            if prompt:
+                prompt_info = {"id": prompt.id, "title": prompt.title}
+        
+        return {
+            "id": article.id,
+            "title": article.title,
+            "content": article.content,
+            "category": article.category,
+            "tags": article.tags,
+            "prompt_id": article.prompt_id,
+            "word_count": article.word_count,
+            "char_count": article.char_count,
+            "metadata": article.metadata,
+            "created_at": article.created_at.isoformat() if article.created_at else None,
+            "updated_at": article.updated_at.isoformat() if article.updated_at else None,
+            "prompt": prompt_info
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating article: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create article")
+
+@app.put("/api/articles/{article_id}")
+async def update_article(
+    article_id: str,
+    article_data: UpdateArticleRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update an existing article"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Find article
+        article = db.query(Article).filter(
+            Article.id == article_id,
+            Article.user_id == current_user.id
+        ).first()
+        
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Update fields
+        if article_data.title is not None:
+            article.title = article_data.title
+        if article_data.content is not None:
+            article.content = article_data.content
+            # Recalculate counts if content changed
+            word_count, char_count = calculate_counts(article_data.content)
+            article.word_count = word_count
+            article.char_count = char_count
+        if article_data.category is not None:
+            article.category = article_data.category
+        if article_data.tags is not None:
+            article.tags = article_data.tags
+        if article_data.metadata is not None:
+            article.metadata = article_data.metadata
+        
+        article.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(article)
+        
+        # Get source prompt info if available
+        prompt_info = None
+        if article.prompt_id:
+            prompt = db.query(Prompt).filter(Prompt.id == article.prompt_id).first()
+            if prompt:
+                prompt_info = {"id": prompt.id, "title": prompt.title}
+        
+        return {
+            "id": article.id,
+            "title": article.title,
+            "content": article.content,
+            "category": article.category,
+            "tags": article.tags,
+            "prompt_id": article.prompt_id,
+            "word_count": article.word_count,
+            "char_count": article.char_count,
+            "metadata": article.metadata,
+            "created_at": article.created_at.isoformat() if article.created_at else None,
+            "updated_at": article.updated_at.isoformat() if article.updated_at else None,
+            "prompt": prompt_info
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating article: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update article")
+
+@app.delete("/api/articles/{article_id}")
+async def delete_article(article_id: str, request: Request, db: Session = Depends(get_db)):
+    """Delete an article"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Find article
+        article = db.query(Article).filter(
+            Article.id == article_id,
+            Article.user_id == current_user.id
+        ).first()
+        
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        db.delete(article)
+        db.commit()
+        
+        return {"success": True, "message": "Article deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting article: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete article")
+
+@app.get("/api/articles/stats/overview")
+async def get_article_stats(request: Request, db: Session = Depends(get_db)):
+    """Get article statistics"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Get total count
+        total_count = db.query(Article).filter(Article.user_id == current_user.id).count()
+        
+        # Get total words
+        total_words_result = db.query(
+            db.func.sum(Article.word_count)
+        ).filter(Article.user_id == current_user.id).scalar()
+        total_words = total_words_result or 0
+        
+        # Get category breakdown
+        category_stats = db.query(
+            Article.category,
+            db.func.count(Article.id).label('count')
+        ).filter(Article.user_id == current_user.id).group_by(Article.category).all()
+        
+        category_breakdown = [
+            {
+                "category": stat.category or "Uncategorized",
+                "count": stat.count
+            }
+            for stat in category_stats
+        ]
+        
+        # Get recent articles
+        recent_articles = db.query(Article).filter(
+            Article.user_id == current_user.id
+        ).order_by(Article.created_at.desc()).limit(5).all()
+        
+        recent_articles_data = [
+            {
+                "id": article.id,
+                "title": article.title,
+                "category": article.category,
+                "word_count": article.word_count,
+                "created_at": article.created_at.isoformat() if article.created_at else None
+            }
+            for article in recent_articles
+        ]
+        
+        return {
+            "total_articles": total_count,
+            "total_words": total_words,
+            "category_breakdown": category_breakdown,
+            "recent_articles": recent_articles_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting article stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get article statistics")
+
+@app.post("/api/migrate-articles/add-articles-table")
+async def migrate_articles_table(db: Session = Depends(get_db)):
+    """Create articles table - migration endpoint"""
+    try:
+        logger.info("🔧 Starting articles table migration...")
+        
+        # Check if table already exists
+        try:
+            result = db.execute(text("""
+                SELECT COUNT(*) as count 
+                FROM information_schema.tables 
+                WHERE table_schema = DATABASE() 
+                AND table_name = 'articles'
+            """))
+            exists = result.fetchone()[0] > 0
+            
+            if exists:
+                logger.info("✅ Articles table already exists")
+                return {
+                    "success": True,
+                    "message": "Articles table already exists",
+                    "already_migrated": True
+                }
+        except Exception as e:
+            logger.info(f"Table check failed, proceeding with migration: {e}")
+        
+        # Create articles table
+        logger.info("📝 Creating articles table...")
+        db.execute(text("""
+            CREATE TABLE articles (
+                id VARCHAR(255) NOT NULL,
+                title VARCHAR(500) NOT NULL,
+                content LONGTEXT NOT NULL,
+                category VARCHAR(255) NULL,
+                tags JSON DEFAULT ('[]'),
+                prompt_id VARCHAR(255) NULL,
+                user_id VARCHAR(255) NOT NULL,
+                word_count INT NULL,
+                char_count INT NULL,
+                metadata JSON DEFAULT ('{}'),
+                created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+                updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+                
+                PRIMARY KEY (id),
+                KEY articles_user_id_idx (user_id),
+                KEY articles_prompt_id_idx (prompt_id),
+                KEY articles_category_idx (category),
+                KEY articles_created_at_idx (created_at),
+                
+                CONSTRAINT articles_user_id_fkey 
+                  FOREIGN KEY (user_id) REFERENCES users (id) 
+                  ON DELETE CASCADE ON UPDATE CASCADE,
+                
+                CONSTRAINT articles_prompt_id_fkey 
+                  FOREIGN KEY (prompt_id) REFERENCES prompts (id) 
+                  ON DELETE SET NULL ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """))
+        
+        db.commit()
+        logger.info("✅ Articles table created successfully")
+        
+        return {
+            "success": True,
+            "message": "Articles table migration completed successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Articles migration failed: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
 
 # Frontend routes
 @app.get("/", response_class=HTMLResponse)

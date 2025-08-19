@@ -80,6 +80,22 @@ class Token(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Article(Base):
+    __tablename__ = "articles"
+    
+    id = Column(String(255), primary_key=True)
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=False)  # LONGTEXT for large markdown content
+    category = Column(String(255), nullable=True)
+    tags = Column(JSON, default=list)
+    prompt_id = Column(String(255), nullable=True)  # Optional reference to source prompt
+    user_id = Column(String(255), nullable=False)
+    word_count = Column(Integer, nullable=True)
+    char_count = Column(Integer, nullable=True)
+    metadata = Column(JSON, default=dict)  # Additional metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 def get_db():
     db = SessionLocal()
     try:
