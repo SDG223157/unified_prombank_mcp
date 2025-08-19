@@ -54,6 +54,19 @@ if [ -n "$STARTUP_DELAY" ]; then
     sleep $STARTUP_DELAY
 fi
 
+# Apply database migrations
+echo "📊 Applying database migrations..."
+if [ -f "apply_admin_migration.py" ]; then
+    python apply_admin_migration.py
+    if [ $? -eq 0 ]; then
+        echo "✅ Database migrations applied successfully"
+    else
+        echo "⚠️  Database migration failed, but continuing startup..."
+    fi
+else
+    echo "⚠️  Migration script not found, skipping migrations..."
+fi
+
 # Start the unified Python application
 echo "🚀 Starting unified Python backend server on port $PORT..."
 python main.py &
