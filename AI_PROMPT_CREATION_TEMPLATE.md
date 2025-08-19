@@ -4,21 +4,34 @@
 
 When I ask you to create a prompt for my Prompt House Premium app, please follow this template exactly. Create prompts that are well-structured, use variables effectively, and follow best practices for AI prompt engineering.
 
+**Important**: Please provide your response in **Markdown format** (not JSON) as specified below. This makes it easier to read, edit, and import into the system.
+
 ---
 
 ## 📋 **Required Format**
 
-Please structure your response as a **JSON object** with these exact fields:
+Please structure your response as a **Markdown document** with these exact sections:
 
-```json
-{
-  "title": "Clear, descriptive title (50-100 characters)",
-  "description": "Brief description of what this prompt does (100-200 characters)",
-  "content": "The actual prompt content with {{variables}} - see guidelines below",
-  "category": "Choose from: Development, Business & Communication, Creative & Design, Education & Learning, Health & Fitness, Finance & Investment, Travel & Lifestyle, Entertainment & Media, Food & Cooking, Templates & Frameworks, Other",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "is_public": false
-}
+```markdown
+# Prompt Title
+Clear, descriptive title (50-100 characters)
+
+## Description
+Brief description of what this prompt does (100-200 characters)
+
+## Category
+Choose ONE from: Development, Business & Communication, Creative & Design, Education & Learning, Health & Fitness, Finance & Investment, Travel & Lifestyle, Entertainment & Media, Food & Cooking, Templates & Frameworks, Other
+
+## Tags
+tag1, tag2, tag3, tag4, tag5
+
+## Public
+false (or true if you want it public)
+
+## Content
+The actual prompt content with {{variables}} - see guidelines below
+
+[Your full prompt content goes here with proper markdown formatting]
 ```
 
 ---
@@ -73,36 +86,65 @@ Use specific, searchable keywords like:
 
 ---
 
-## 💡 **Example Prompt Structure**
+## 💡 **Complete Example**
 
-```
-You are a {{expert_role}}. Create a {{deliverable_type}} for {{target_context}} that focuses on {{main_objective}}.
+```markdown
+# Email Marketing Campaign Generator
 
-## 🎯 **Requirements:**
-- {{requirement_1}}
-- {{requirement_2}}  
-- {{requirement_3}}
+## Description
+Creates comprehensive email marketing campaigns with subject lines, content, and call-to-actions for businesses
 
-## 📋 **Specifications:**
-- **Style**: {{style_preference}}
-- **Length**: {{desired_length}}
-- **Audience**: {{target_audience}}
-- **Format**: {{output_format}}
+## Category
+Business & Communication
+
+## Tags
+email-marketing, campaigns, business, copywriting, marketing
+
+## Public
+false
+
+## Content
+You are a professional email marketing specialist. Create a comprehensive email marketing campaign for {{business_type}} targeting {{target_audience}} to promote {{campaign_objective}}.
+
+## 🎯 **Campaign Requirements:**
+- **Business Type**: {{business_type}}
+- **Target Audience**: {{target_audience}}
+- **Campaign Goal**: {{campaign_objective}}
+- **Email Type**: {{email_type}}
+- **Brand Voice**: {{brand_voice}}
+
+## 📧 **Email Components:**
+
+### Subject Line Options
+Create 3 compelling subject lines that:
+- Are under 50 characters
+- Create urgency or curiosity
+- Are relevant to {{campaign_objective}}
+
+### Email Content Structure:
+1. **Opening Hook**: Attention-grabbing first sentence
+2. **Value Proposition**: Clear benefit for {{target_audience}}
+3. **Main Content**: Detailed information about {{campaign_objective}}
+4. **Social Proof**: Testimonials or statistics (if applicable)
+5. **Call-to-Action**: Clear, action-oriented CTA button
+
+### Email Footer:
+- Unsubscribe link
+- Company contact information
+- Social media links
 
 ## ✅ **Quality Standards:**
-1. {{quality_standard_1}}
-2. {{quality_standard_2}}
-3. {{quality_standard_3}}
+- Mobile-responsive design considerations
+- Personalization elements using recipient data
+- A/B testing suggestions for optimization
+- Compliance with email marketing regulations
 
-## 📊 **Output Structure:**
-Please provide:
-1. **{{section_1}}**: {{section_1_description}}
-2. **{{section_2}}**: {{section_2_description}}
-3. **{{section_3}}**: {{section_3_description}}
+## 📊 **Additional Deliverables:**
+- **Send Time Recommendations**: Best times to send for {{target_audience}}
+- **Follow-up Sequence**: 2-3 follow-up email ideas
+- **Success Metrics**: KPIs to track campaign performance
 
-{{additional_instructions}}
-
-Create professional, high-quality content that meets all specified requirements!
+Create a professional, conversion-focused email campaign that drives results!
 ```
 
 ---
@@ -145,14 +187,14 @@ Create professional, high-quality content that meets all specified requirements!
 
 ## 📋 **Quality Checklist**
 
-Before providing your JSON response, ensure:
+Before providing your markdown response, ensure:
 
 - [ ] Title is clear and descriptive (50-100 characters)
 - [ ] Description explains the prompt's purpose (100-200 characters)
 - [ ] Content includes 3-8 well-named variables
 - [ ] Prompt has clear structure with role, task, requirements, and output format
 - [ ] Category is appropriate and from the approved list
-- [ ] 3-6 relevant tags are included
+- [ ] 3-6 relevant tags are included (comma-separated)
 - [ ] Content uses good markdown formatting
 - [ ] Prompt would produce consistent, high-quality results
 - [ ] Variables are integrated naturally into the flow
@@ -162,17 +204,27 @@ Before providing your JSON response, ensure:
 
 ## 🎯 **Final Request Format**
 
-When you're ready, provide your response in this exact format:
+When you're ready, provide your response in this exact markdown format:
 
-```json
-{
-  "title": "Your Prompt Title Here",
-  "description": "Your prompt description here",
-  "content": "Your full prompt content with {{variables}} here",
-  "category": "Appropriate Category",
-  "tags": ["tag1", "tag2", "tag3", "tag4"],
-  "is_public": false
-}
+```markdown
+# Your Prompt Title Here
+
+## Description
+Your prompt description here
+
+## Category
+Appropriate Category
+
+## Tags
+tag1, tag2, tag3, tag4
+
+## Public
+false
+
+## Content
+Your full prompt content with {{variables}} here
+
+[Include all the detailed prompt content with proper markdown formatting]
 ```
 
 **Ready to create amazing prompts for Prompt House Premium!** 🚀
