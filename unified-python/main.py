@@ -1440,7 +1440,7 @@ async def get_article(article_id: str, request: Request, db: Session = Depends(g
             "prompt_id": article.prompt_id,
             "word_count": article.word_count,
             "char_count": article.char_count,
-            "metadata": article.metadata,
+            "metadata": article.article_metadata,
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "updated_at": article.updated_at.isoformat() if article.updated_at else None,
             "prompt": prompt_info
@@ -1488,7 +1488,7 @@ async def create_article(
             user_id=current_user.id,
             word_count=word_count,
             char_count=char_count,
-            metadata=article_data.metadata
+            article_metadata=article_data.metadata
         )
         
         db.add(article)
@@ -1511,7 +1511,7 @@ async def create_article(
             "prompt_id": article.prompt_id,
             "word_count": article.word_count,
             "char_count": article.char_count,
-            "metadata": article.metadata,
+            "metadata": article.article_metadata,
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "updated_at": article.updated_at.isoformat() if article.updated_at else None,
             "prompt": prompt_info
@@ -1560,7 +1560,7 @@ async def update_article(
         if article_data.tags is not None:
             article.tags = article_data.tags
         if article_data.metadata is not None:
-            article.metadata = article_data.metadata
+            article.article_metadata = article_data.metadata
         
         article.updated_at = datetime.utcnow()
         
@@ -1583,7 +1583,7 @@ async def update_article(
             "prompt_id": article.prompt_id,
             "word_count": article.word_count,
             "char_count": article.char_count,
-            "metadata": article.metadata,
+            "metadata": article.article_metadata,
             "created_at": article.created_at.isoformat() if article.created_at else None,
             "updated_at": article.updated_at.isoformat() if article.updated_at else None,
             "prompt": prompt_info
@@ -1722,7 +1722,7 @@ async def migrate_articles_table(db: Session = Depends(get_db)):
                 user_id VARCHAR(255) NOT NULL,
                 word_count INT NULL,
                 char_count INT NULL,
-                metadata JSON DEFAULT ('{}'),
+                article_metadata JSON DEFAULT ('{}'),
                 created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
                 updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
                 

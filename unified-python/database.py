@@ -92,7 +92,7 @@ class Article(Base):
     user_id = Column(String(255), nullable=False)
     word_count = Column(Integer, nullable=True)
     char_count = Column(Integer, nullable=True)
-    metadata = Column(JSON, default=dict)  # Additional metadata
+    article_metadata = Column(JSON, default=dict)  # Additional metadata (renamed to avoid SQLAlchemy conflict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
