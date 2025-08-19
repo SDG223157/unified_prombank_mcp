@@ -1860,6 +1860,31 @@ async def serve_edit_article(request: Request, article_id: str):
         "article_id": article_id
     })
 
+# Feature Pages
+@app.get("/features/editor", response_class=HTMLResponse)
+async def serve_editor_features(request: Request):
+    """Serve the Advanced Editor features page"""
+    return templates.TemplateResponse("features_editor.html", {
+        "request": request,
+        "title": "Advanced Editor - Prompt House Premium"
+    })
+
+@app.get("/features/collaboration", response_class=HTMLResponse)
+async def serve_collaboration_features(request: Request):
+    """Serve the Team Collaboration features page"""
+    return templates.TemplateResponse("features_collaboration.html", {
+        "request": request,
+        "title": "Team Collaboration - Prompt House Premium"
+    })
+
+@app.get("/features/search", response_class=HTMLResponse)
+async def serve_search_features(request: Request):
+    """Serve the Smart Search features page"""
+    return templates.TemplateResponse("features_search.html", {
+        "request": request,
+        "title": "Smart Search - Prompt House Premium"
+    })
+
 # Admin Routes
 @app.get("/admin", response_class=HTMLResponse)
 async def serve_admin_dashboard(request: Request, current_user: User = Depends(require_auth)):

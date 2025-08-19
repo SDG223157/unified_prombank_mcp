@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <!-- Hero Section -->
+    <div class="relative overflow-hidden bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-3xl mb-12">
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%2310B981" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+        
+        <div class="relative px-8 py-16 lg:px-16 lg:py-24">
+            <div class="max-w-4xl mx-auto text-center">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl text-white text-3xl mb-8 shadow-2xl">
+                    <i class="fas fa-users"></i>
+                </div>
+                
+                <h1 class="text-5xl font-bold text-gray-900 mb-6 lg:text-6xl">
+                    Team Collaboration
+                </h1>
+                
+                <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
+                    Share prompts seamlessly with your team, manage permissions, and collaborate 
+                    in real-time on AI projects for maximum productivity.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/prompts" class="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
+                        <i class="fas fa-share mr-3"></i>
+                        Start Collaborating
+                    </a>
+                    <a href="/dashboard" class="inline-flex items-center justify-center rounded-xl border-2 border-green-600 text-green-600 px-8 py-4 text-lg font-semibold hover:bg-green-600 hover:text-white transform hover:-translate-y-0.5 transition-all duration-200">
+                        <i class="fas fa-chart-line mr-3"></i>
+                        View Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid lg:grid-cols-2 gap-12 mb-16">
+        <!-- Feature 1 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-share-alt text-green-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Smart Sharing</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Share prompts with specific team members or make them public for the entire organization. 
+                Control who can view, edit, or use your prompts with granular permissions.
+            </p>
+            <div class="space-y-3">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-eye text-green-500"></i>
+                    <span class="text-sm text-gray-700">View permissions</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-edit text-green-500"></i>
+                    <span class="text-sm text-gray-700">Edit permissions</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-globe text-green-500"></i>
+                    <span class="text-sm text-gray-700">Public sharing</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-users-cog text-emerald-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Permission Management</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Fine-grained control over who can access your prompts. Set different permission levels 
+                for different team members and track usage across your organization.
+            </p>
+            <div class="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-4">
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <div class="text-emerald-600 font-bold">Owner</div>
+                        <div class="text-xs text-gray-600">Full Control</div>
+                    </div>
+                    <div>
+                        <div class="text-green-600 font-bold">Editor</div>
+                        <div class="text-xs text-gray-600">Can Modify</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-600 font-bold">Viewer</div>
+                        <div class="text-xs text-gray-600">Read Only</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-comments text-teal-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Real-time Collaboration</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Work together on prompts in real-time. See who's editing, leave comments, 
+                and track changes with version history for seamless team coordination.
+            </p>
+            <div class="flex items-center space-x-4">
+                <div class="flex -space-x-2">
+                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold">J</div>
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">A</div>
+                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">M</div>
+                </div>
+                <span class="text-sm text-gray-600">3 team members editing</span>
+            </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-history text-blue-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Version History</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Track all changes to your prompts with detailed version history. 
+                Compare versions, restore previous iterations, and see who made what changes.
+            </p>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-700">v1.3 - Updated instructions</span>
+                    <span class="text-gray-500">2 hours ago</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-700">v1.2 - Added variables</span>
+                    <span class="text-gray-500">1 day ago</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-700">v1.1 - Initial version</span>
+                    <span class="text-gray-500">3 days ago</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Benefits Section -->
+    <div class="bg-gradient-to-r from-green-600 to-emerald-600 rounded-3xl p-12 text-white mb-16">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-4xl font-bold mb-8">Why Teams Love Our Collaboration Features</h2>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="text-4xl font-bold mb-2">85%</div>
+                    <div class="text-green-100">Faster prompt development</div>
+                </div>
+                
+                <div class="text-center">
+                    <div class="text-4xl font-bold mb-2">3x</div>
+                    <div class="text-green-100">More prompt reuse</div>
+                </div>
+                
+                <div class="text-center">
+                    <div class="text-4xl font-bold mb-2">50%</div>
+                    <div class="text-green-100">Reduction in duplicate work</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Start Collaborating with Your Team</h2>
+        <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Join thousands of teams who trust Prompt House Premium for their AI collaboration needs.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/prompts" class="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
+                <i class="fas fa-users mr-3"></i>
+                Browse Shared Prompts
+            </a>
+            <a href="/create_prompt" class="inline-flex items-center justify-center rounded-xl border-2 border-green-600 text-green-600 px-8 py-4 text-lg font-semibold hover:bg-green-600 hover:text-white transform hover:-translate-y-0.5 transition-all duration-200">
+                <i class="fas fa-plus mr-3"></i>
+                Create Team Prompt
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

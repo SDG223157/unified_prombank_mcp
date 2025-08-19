@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <!-- Hero Section -->
+    <div class="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl mb-12">
+        <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%234F46E5" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50"></div>
+        
+        <div class="relative px-8 py-16 lg:px-16 lg:py-24">
+            <div class="max-w-4xl mx-auto text-center">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl text-white text-3xl mb-8 shadow-2xl">
+                    <i class="fas fa-code"></i>
+                </div>
+                
+                <h1 class="text-5xl font-bold text-gray-900 mb-6 lg:text-6xl">
+                    Advanced Editor
+                </h1>
+                
+                <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
+                    Craft perfect AI prompts with our intelligent editor featuring syntax highlighting, 
+                    variable detection, and smart auto-completion.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/create_prompt" class="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
+                        <i class="fas fa-plus mr-3"></i>
+                        Create Your First Prompt
+                    </a>
+                    <a href="/prompts" class="inline-flex items-center justify-center rounded-xl border-2 border-blue-600 text-blue-600 px-8 py-4 text-lg font-semibold hover:bg-blue-600 hover:text-white transform hover:-translate-y-0.5 transition-all duration-200">
+                        <i class="fas fa-eye mr-3"></i>
+                        View Examples
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid lg:grid-cols-2 gap-12 mb-16">
+        <!-- Feature 1 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-paint-brush text-blue-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Syntax Highlighting</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Intelligent syntax highlighting that recognizes prompt variables, markdown formatting, 
+                and AI-specific syntax patterns to help you write cleaner, more effective prompts.
+            </p>
+            <div class="bg-gray-50 rounded-xl p-4 font-mono text-sm">
+                <div class="text-blue-600">You are a <span class="bg-yellow-200 px-1 rounded">{{role}}</span> expert.</div>
+                <div class="text-gray-700">Please analyze <span class="bg-yellow-200 px-1 rounded">{{content}}</span> and provide:</div>
+                <div class="text-green-600">- Key insights</div>
+                <div class="text-green-600">- Recommendations</div>
+            </div>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-magic text-indigo-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Variable Detection</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Automatically detect and highlight variables in your prompts. The editor intelligently 
+                identifies {{variable}} patterns and helps you manage prompt customization.
+            </p>
+            <div class="space-y-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                    <span class="text-sm text-gray-700">{{role}} - Detected variable</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                    <span class="text-sm text-gray-700">{{content}} - Detected variable</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                    <span class="text-sm text-gray-700">{{format}} - Detected variable</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-lightbulb text-purple-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Smart Auto-Completion</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Intelligent suggestions based on your prompt context, common patterns, and best practices. 
+                Speed up your prompt creation with AI-powered recommendations.
+            </p>
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4">
+                <div class="text-sm text-gray-700 mb-2">Suggestions:</div>
+                <div class="space-y-2">
+                    <div class="text-purple-600 text-sm">• "Please provide detailed analysis..."</div>
+                    <div class="text-purple-600 text-sm">• "Format your response as..."</div>
+                    <div class="text-purple-600 text-sm">• "Include specific examples..."</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+            <div class="flex items-center mb-6">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4">
+                    <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900">Real-time Validation</h3>
+            </div>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                Get instant feedback on your prompt structure, variable usage, and potential improvements 
+                as you type. Ensure your prompts follow best practices.
+            </p>
+            <div class="space-y-3">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-check text-green-500"></i>
+                    <span class="text-sm text-gray-700">Variables properly formatted</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-check text-green-500"></i>
+                    <span class="text-sm text-gray-700">Clear instructions provided</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-exclamation-triangle text-yellow-500"></i>
+                    <span class="text-sm text-gray-700">Consider adding output format</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-12 text-white mb-16">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-4xl font-bold mb-8">How the Advanced Editor Works</h2>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-edit text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">1. Write</h3>
+                    <p class="text-blue-100">Start typing your prompt with intelligent assistance and real-time suggestions.</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-cogs text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">2. Optimize</h3>
+                    <p class="text-blue-100">Get instant feedback and suggestions to improve your prompt effectiveness.</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-rocket text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">3. Deploy</h3>
+                    <p class="text-blue-100">Save, share, and use your optimized prompts across your AI workflow.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Ready to Experience the Advanced Editor?</h2>
+        <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Start creating professional AI prompts with our intelligent editor today.
+        </p>
+        <a href="/create_prompt" class="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200">
+            <i class="fas fa-plus mr-3"></i>
+            Create Your First Prompt
+        </a>
+    </div>
+</div>
+{% endblock %}
