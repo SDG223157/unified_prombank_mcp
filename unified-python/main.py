@@ -491,8 +491,46 @@ async def get_user_profile(request: Request, current_user: User = Depends(get_cu
         "profile_picture": current_user.profile_picture,
         "auth_provider": current_user.auth_provider,
         "subscription_tier": current_user.subscription_tier,
+        "is_admin": current_user.is_admin,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None
     }
+
+@app.get("/api/user/stats")
+async def get_user_stats(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Get user statistics including prompt counts"""
+    try:
+        # Count total prompts
+        total_prompts = db.query(Prompt).filter(Prompt.user_id == current_user.id).count()
+        
+        # Count public prompts
+        public_prompts = db.query(Prompt).filter(
+            Prompt.user_id == current_user.id,
+            Prompt.is_public == True
+        ).count()
+        
+        # Count private prompts
+        private_prompts = total_prompts - public_prompts
+        
+        return {
+            "user": {
+                "id": current_user.id,
+                "name": f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email,
+                "email": current_user.email,
+                "subscription_tier": current_user.subscription_tier,
+                "is_admin": current_user.is_admin,
+                "created_at": current_user.created_at.isoformat() if current_user.created_at else None
+            },
+            "stats": {
+                "prompts": {
+                    "total": total_prompts,
+                    "public": public_prompts,
+                    "private": private_prompts
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error getting user stats: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/auth/status")
 async def auth_status(request: Request, current_user: User = Depends(get_current_user)):

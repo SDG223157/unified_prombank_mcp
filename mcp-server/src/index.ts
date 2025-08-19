@@ -289,6 +289,20 @@ class PromptHousePremiumServer {
                 }
               }
             }
+          },
+          {
+            name: 'user_info',
+            description: 'Get current user information, profile, and statistics',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                include_stats: {
+                  type: 'boolean',
+                  description: 'Include user statistics (prompt counts, etc.)',
+                  default: true
+                }
+              }
+            }
           }
         ]
       };
@@ -319,6 +333,9 @@ class PromptHousePremiumServer {
           
           case 'import_prompts':
             return await this.handleImportPrompts(args);
+          
+          case 'user_info':
+            return await this.handleUserInfo(args);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -485,6 +502,47 @@ class PromptHousePremiumServer {
           {
             type: 'text',
             text: `❌ Import failed: ${error.response?.data?.detail || error.message}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async handleUserInfo(args: any) {
+    try {
+      const includeStats = args.include_stats !== false; // Default to true
+      
+      if (includeStats) {
+        // Get user profile with statistics
+        const data = await this.makeApiCall('/user/stats');
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `👤 **User Information**\n\n**Profile:**\n• Name: ${data.user.name}\n• Email: ${data.user.email}\n• Subscription: ${data.user.subscription_tier || 'Free'}\n• Admin: ${data.user.is_admin ? 'Yes' : 'No'}\n• Member since: ${new Date(data.user.created_at).toLocaleDateString()}\n\n**Statistics:**\n• Total prompts: ${data.stats.prompts.total}\n• Public prompts: ${data.stats.prompts.public}\n• Private prompts: ${data.stats.prompts.private}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+            }
+          ]
+        };
+      } else {
+        // Get just user profile
+        const data = await this.makeApiCall('/user/profile');
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `👤 **User Profile**\n\n• Name: ${data.first_name} ${data.last_name}`.trim() + `\n• Email: ${data.email}\n• Subscription: ${data.subscription_tier || 'Free'}\n• Admin: ${data.is_admin ? 'Yes' : 'No'}\n• Auth Provider: ${data.auth_provider}\n• Member since: ${new Date(data.created_at).toLocaleDateString()}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+            }
+          ]
+        };
+      }
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Failed to get user info: ${error.response?.data?.detail || error.message}`
           }
         ]
       };

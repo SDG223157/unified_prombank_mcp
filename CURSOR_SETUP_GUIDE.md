@@ -55,7 +55,8 @@ Once configured, you can use these commands in Cursor:
 - **"Create a prompt for [topic]"** - Create new prompts  
 - **"Get prompt [prompt-name]"** - View specific prompt
 - **"Update prompt [id] to add tag [tag]"** - Modify prompts
-- **"Import prompts from JSON"** - Bulk import (coming soon)
+- **"Get my user info"** - View your profile and statistics
+- **"Import prompts from JSON"** - Bulk import
 
 ---
 

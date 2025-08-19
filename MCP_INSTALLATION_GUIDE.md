@@ -110,6 +110,12 @@ Once configured, you'll have access to these MCP tools in Cursor:
 - **`delete_prompt`** - Remove prompts
 - **`get_user_prompts`** - List your personal prompts
 
+### 👤 User Information
+- **`user_info`** - Get current user profile and statistics
+  - View profile details (name, email, subscription)
+  - See prompt statistics (total, public, private counts)
+  - Optional parameter to include/exclude statistics
+
 ### 📥 Import Tools
 - **`import_prompts`** - Import from JSON data or URLs
   - Support for JSON and CSV formats
@@ -136,6 +142,16 @@ Get all public prompts in the "Development" category with tag "python"
 ### Update Existing Prompt
 ```
 Update prompt ID "abc123" to make it public and add the tag "featured"
+```
+
+### Get User Information
+```
+Get my user info and statistics
+```
+
+### Get User Profile Only
+```
+Get my user profile without statistics
 ```
 
 ## 🔍 Troubleshooting
