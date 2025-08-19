@@ -35,6 +35,7 @@ A comprehensive prompt management platform with advanced features for AI enthusi
 - **Unified Deployment**: Single container with all components
 - **Prompt Management**: Create, edit, and organize AI prompts  
 - **Advanced Editor**: Rich text editor with syntax highlighting
+- **Multi-Format Import**: Import prompts from JSON, CSV, and Markdown files
 - **Team Collaboration**: Share prompts with team members
 - **Search & Filter**: Powerful search capabilities
 - **Google OAuth**: Secure authentication
@@ -182,6 +183,62 @@ npm run dev                 # Start all dev servers
 - **Resource optimization** with multi-stage builds
 - **Container orchestration** with proper service dependencies
 - **Backup support** for database and configuration
+
+## 📥 Import Formats
+
+Prompt House Premium supports importing prompts from multiple formats:
+
+### JSON Format
+```json
+{
+  "prompts": [
+    {
+      "title": "Code Assistant",
+      "description": "Helpful coding assistant",
+      "content": "Write a {{language}} function that {{task}}",
+      "category": "Development", 
+      "tags": ["coding", "programming"],
+      "is_public": false
+    }
+  ]
+}
+```
+
+### CSV Format
+```csv
+title,description,content,category,tags,is_public
+"Code Assistant","Helpful coding assistant","Write a {{language}} function that {{task}}","Development","coding,programming",false
+```
+
+### Markdown Format (NEW!)
+```markdown
+# Code Assistant
+
+**Description:** Helpful coding assistant
+**Category:** Development
+**Tags:** coding, programming
+**Public:** false
+
+Write a {{language}} function that {{task}}.
+
+---
+
+# Another Prompt
+
+**Description:** Another helpful prompt
+**Tags:** example, demo
+
+Your prompt content here with {{variables}}.
+```
+
+**Markdown Format Features:**
+- Use `#`, `##`, or `###` headers for prompt titles
+- Use `**Field:**` syntax for metadata
+- Separate multiple prompts with `---`
+- Support for `{{variable}}` syntax
+- Defaults to private (`is_public: false`)
+
+See `sample-prompts.md` for a complete example.
 
 ## 🆘 Support
 

@@ -17,6 +17,7 @@ import httpx
 import json
 import csv
 import io
+import re
 from datetime import datetime
 from typing import List, Dict, Any
 from pydantic import BaseModel, ValidationError
@@ -40,7 +41,95 @@ class BulkImportRequest(BaseModel):
     
 class URLImportRequest(BaseModel):
     url: str
-    format: str = "json"  # json, csv, or auto-detect
+    format: str = "json"  # json, csv, md, or auto-detect
+
+def parse_markdown_prompts(markdown_content: str) -> List[Dict[str, Any]]:
+    """
+    Parse Markdown content to extract prompts.
+    
+    Expected format:
+    # Prompt Title
+    
+    **Description:** Optional description here
+    **Category:** Optional category
+    **Tags:** tag1, tag2, tag3
+    **Public:** false (optional, defaults to false)
+    
+    Your prompt content goes here with {{variables}} if needed.
+    
+    ---
+    
+    # Another Prompt Title
+    ...
+    """
+    prompts = []
+    
+    # Split content by horizontal rules or headers at start of line
+    sections = re.split(r'\n\s*---\s*\n|\n(?=#+\s)', markdown_content.strip())
+    
+    for section in sections:
+        if not section.strip():
+            continue
+            
+        lines = section.strip().split('\n')
+        if not lines:
+            continue
+        
+        # Extract title from first line (should be a header)
+        title_match = re.match(r'^#+\s*(.+)$', lines[0].strip())
+        if not title_match:
+            continue
+            
+        title = title_match.group(1).strip()
+        
+        # Initialize prompt data
+        prompt_data = {
+            'title': title,
+            'description': '',
+            'category': 'Imported',
+            'tags': [],
+            'is_public': False,
+            'content': ''
+        }
+        
+        # Parse metadata and content
+        content_lines = []
+        in_content = False
+        
+        for line in lines[1:]:
+            line = line.strip()
+            
+            # Check for metadata
+            if line.startswith('**') and ':' in line and not in_content:
+                # Extract metadata
+                metadata_match = re.match(r'\*\*([^:]+):\*\*\s*(.+)', line)
+                if metadata_match:
+                    key = metadata_match.group(1).strip().lower()
+                    value = metadata_match.group(2).strip()
+                    
+                    if key == 'description':
+                        prompt_data['description'] = value
+                    elif key == 'category':
+                        prompt_data['category'] = value
+                    elif key == 'tags':
+                        # Parse comma-separated tags
+                        prompt_data['tags'] = [tag.strip() for tag in value.split(',') if tag.strip()]
+                    elif key == 'public':
+                        prompt_data['is_public'] = value.lower() in ['true', '1', 'yes']
+                continue
+            
+            # If we hit a non-metadata line, start collecting content
+            if line or in_content:
+                in_content = True
+                content_lines.append(line)
+        
+        # Join content lines and clean up
+        content = '\n'.join(content_lines).strip()
+        if content:
+            prompt_data['content'] = content
+            prompts.append(prompt_data)
+    
+    return prompts
 
 # Create FastAPI app
 app = FastAPI(
@@ -877,6 +966,64 @@ async def import_prompts_csv(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"CSV import failed: {str(e)}")
 
+@app.post("/api/import/md")
+async def import_prompts_md(
+    request: Request,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """Import prompts from Markdown data"""
+    try:
+        form = await request.form()
+        md_content = form.get("md_content", "")
+        
+        if not md_content:
+            raise HTTPException(status_code=400, detail="No Markdown content provided")
+        
+        # Parse Markdown
+        prompts_data = parse_markdown_prompts(md_content)
+        imported_prompts = []
+        
+        for prompt_data in prompts_data:
+            if not prompt_data.get('title') or not prompt_data.get('content'):
+                continue
+                
+            # Extract variables from content
+            variables = re.findall(r'\{\{(\w+)\}\}', prompt_data.get('content', ''))
+            variables = list(set(variables))
+            
+            new_prompt = Prompt(
+                id=str(uuid.uuid4()),
+                title=prompt_data.get('title'),
+                description=prompt_data.get('description', ''),
+                content=prompt_data.get('content'),
+                category=prompt_data.get('category', 'Imported'),
+                tags=prompt_data.get('tags', []),
+                variables=variables,
+                is_public=prompt_data.get('is_public', False),
+                user_id=current_user.id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(new_prompt)
+            imported_prompts.append({
+                "id": new_prompt.id,
+                "title": new_prompt.title,
+                "variables_detected": variables
+            })
+        
+        db.commit()
+        return {
+            "message": f"Successfully imported {len(imported_prompts)} prompts from Markdown",
+            "imported_prompts": imported_prompts
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing Markdown prompts: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Markdown import failed: {str(e)}")
+
 @app.post("/api/import/url")
 async def import_prompts_url(
     request: URLImportRequest,
@@ -926,7 +1073,7 @@ async def import_prompts_url(
                     "variables_detected": variables
                 })
         
-        elif request.format == "csv" or request.format == "auto-detect":
+        elif request.format == "csv" or (request.format == "auto-detect" and ',' in content and 'title' in content.split('\n')[0]):
             # Parse as CSV
             csv_reader = csv.DictReader(io.StringIO(content))
             
@@ -935,7 +1082,6 @@ async def import_prompts_url(
                     continue
                     
                 # Extract variables
-                import re
                 variables = re.findall(r'\{\{(\w+)\}\}', row.get('content', ''))
                 variables = list(set(variables))
                 
@@ -951,6 +1097,38 @@ async def import_prompts_url(
                     tags=tags,
                     variables=variables,
                     is_public=row.get('is_public', '').lower() in ['true', '1', 'yes'],
+                    user_id=current_user.id,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.add(new_prompt)
+                imported_prompts.append({
+                    "id": new_prompt.id,
+                    "title": new_prompt.title,
+                    "variables_detected": variables
+                })
+        
+        elif request.format == "md" or (request.format == "auto-detect" and content.strip().startswith('#')):
+            # Parse as Markdown
+            prompts_data = parse_markdown_prompts(content)
+            
+            for prompt_data in prompts_data:
+                if not prompt_data.get('title') or not prompt_data.get('content'):
+                    continue
+                    
+                # Extract variables
+                variables = re.findall(r'\{\{(\w+)\}\}', prompt_data.get('content', ''))
+                variables = list(set(variables))
+                
+                new_prompt = Prompt(
+                    id=str(uuid.uuid4()),
+                    title=prompt_data.get('title'),
+                    description=prompt_data.get('description', ''),
+                    content=prompt_data.get('content'),
+                    category=prompt_data.get('category', 'Imported'),
+                    tags=prompt_data.get('tags', []),
+                    variables=variables,
+                    is_public=prompt_data.get('is_public', False),
                     user_id=current_user.id,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow()

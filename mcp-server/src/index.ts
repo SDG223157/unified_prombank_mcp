@@ -55,7 +55,7 @@ interface ImportRequest {
   type: 'json' | 'url';
   prompts?: ImportPromptData[];
   url?: string;
-  format?: 'json' | 'csv' | 'auto-detect';
+  format?: 'json' | 'csv' | 'md' | 'auto-detect';
 }
 
 class PromptHousePremiumServer {
@@ -265,7 +265,7 @@ class PromptHousePremiumServer {
                 },
                 format: {
                   type: 'string',
-                  enum: ['json', 'csv', 'auto-detect'],
+                  enum: ['json', 'csv', 'md', 'auto-detect'],
                   description: 'Format of the data at URL (for url type)'
                 }
               },

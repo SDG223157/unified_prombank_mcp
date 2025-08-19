@@ -10,7 +10,7 @@
         </div>
 
         <!-- Import Methods -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
             <!-- JSON Import -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center mb-4">
@@ -79,6 +79,43 @@
                 </form>
             </div>
 
+            <!-- Markdown Import -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-orange-100 p-2 rounded-lg mr-3">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Markdown Import</h3>
+                </div>
+                <p class="text-gray-600 mb-4">Import prompts from Markdown format with structured headers</p>
+                
+                <div class="mb-4">
+                    <div class="bg-gray-50 p-3 rounded-md text-sm">
+                        <strong>Format:</strong> Use # headers for titles, **Field:** for metadata
+                    </div>
+                </div>
+                
+                <form id="mdImportForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Markdown Data</label>
+                        <textarea 
+                            id="mdData" 
+                            rows="8" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono text-sm"
+                            placeholder="# My First Prompt&#10;&#10;**Description:** A helpful prompt for coding&#10;**Category:** Development&#10;**Tags:** coding, help&#10;**Public:** false&#10;&#10;Write a {{language}} function that {{task}}.&#10;&#10;---&#10;&#10;# Another Prompt&#10;..."
+                        ></textarea>
+                    </div>
+                    <button 
+                        type="submit" 
+                        class="w-full bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 transition duration-200"
+                    >
+                        Import from Markdown
+                    </button>
+                </form>
+            </div>
+
             <!-- URL Import -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex items-center mb-4">
@@ -89,7 +126,7 @@
                     </div>
                     <h3 class="text-xl font-semibold text-gray-900">URL Import</h3>
                 </div>
-                <p class="text-gray-600 mb-4">Import prompts from a remote URL (JSON or CSV)</p>
+                <p class="text-gray-600 mb-4">Import prompts from a remote URL (JSON, CSV, or Markdown)</p>
                 
                 <form id="urlImportForm" class="space-y-4">
                     <div>
@@ -111,6 +148,7 @@
                             <option value="auto-detect">Auto-detect</option>
                             <option value="json">JSON</option>
                             <option value="csv">CSV</option>
+                            <option value="md">Markdown</option>
                         </select>
                     </div>
                     <button 
@@ -230,6 +268,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             showResults({error: 'CSV import failed: ' + error.message}, false);
+        }
+    });
+    
+    // Markdown Import
+    document.getElementById('mdImportForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const mdData = document.getElementById('mdData').value;
+        
+        if (!mdData.trim()) {
+            alert('Please enter Markdown data');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('md_content', mdData);
+        
+        try {
+            const response = await fetch('/api/import/md', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+            
+            const result = await response.json();
+            showResults(result, response.ok);
+            
+            if (response.ok) {
+                document.getElementById('mdData').value = '';
+            }
+        } catch (error) {
+            showResults({error: 'Markdown import failed: ' + error.message}, false);
         }
     });
     
