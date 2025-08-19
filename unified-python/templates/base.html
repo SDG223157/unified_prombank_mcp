@@ -52,6 +52,11 @@
                             <i class="fas fa-key mr-2 group-hover:animate-pulse"></i>
                             API Tokens
                         </a>
+                        <!-- Admin Link (only visible to admins) -->
+                        <a x-show="user.is_admin" href="/admin" class="group flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-pink-600 rounded-lg transition-all duration-200 transform hover:scale-105">
+                            <i class="fas fa-shield-alt mr-2 group-hover:animate-pulse"></i>
+                            Admin
+                        </a>
                     </div>
 
                     <!-- Divider -->
@@ -92,11 +97,16 @@
                                 <!-- User Info Header -->
                                 <div class="px-4 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
                                     <div class="flex items-center space-x-3">
-                                        <img x-show="user.profile_picture" :src="user.profile_picture" :alt="user.first_name" 
+                        <img x-show="user.profile_picture" :src="user.profile_picture" :alt="user.first_name" 
                                              class="w-10 h-10 rounded-xl shadow-md">
-                                        <div>
+                                        <div class="flex-1">
                                             <p class="text-sm font-semibold text-gray-900" x-text="user.first_name || user.email"></p>
-                                            <p class="text-xs text-indigo-600 font-medium">Premium Account</p>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-xs text-indigo-600 font-medium">Premium Account</span>
+                                                <span x-show="user.is_admin" class="px-2 py-0.5 text-xs font-bold bg-red-100 text-red-700 rounded-full border border-red-200">
+                                                    <i class="fas fa-shield-alt mr-1"></i>ADMIN
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -128,6 +138,12 @@
                                         <span>API Tokens</span>
                                         <i class="fas fa-arrow-right ml-auto text-xs opacity-0 group-hover:opacity-100 transition-opacity"></i>
                                     </a>
+                                    <!-- Admin Link (only visible to admins) -->
+                                    <a x-show="user.is_admin" href="/admin" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors group border-t border-gray-100">
+                                        <i class="fas fa-shield-alt mr-3 w-4 text-red-500 group-hover:scale-110 transition-transform"></i>
+                                        <span class="font-semibold">Admin Dashboard</span>
+                                        <i class="fas fa-arrow-right ml-auto text-xs opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                    </a>
                                 </div>
                                 
                                 <!-- Logout Section -->
@@ -135,7 +151,7 @@
                                     <button @click="logout()" class="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors group">
                                         <i class="fas fa-sign-out-alt mr-3 w-4 group-hover:scale-110 transition-transform"></i>
                                         <span>Sign Out</span>
-                                    </button>
+                        </button>
                                 </div>
                             </div>
                         </div>
@@ -216,6 +232,7 @@
                     const data = await response.json();
                     this.authenticated = data.authenticated;
                     this.user = data.user || {};
+                    console.log('Auth data:', data); // Debug log
                 } catch (error) {
                     console.error('Auth check failed:', error);
                     this.authenticated = false;

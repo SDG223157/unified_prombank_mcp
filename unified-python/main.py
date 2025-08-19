@@ -1859,6 +1859,159 @@ async def serve_edit_article(request: Request, article_id: str):
         "article_id": article_id
     })
 
+# Admin Routes
+@app.get("/admin", response_class=HTMLResponse)
+async def serve_admin_dashboard(request: Request, current_user: User = Depends(require_auth)):
+    """Serve the admin dashboard page (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return templates.TemplateResponse("admin_dashboard.html", {
+        "request": request,
+        "title": "Admin Dashboard - Prompt House Premium"
+    })
+
+@app.get("/api/admin/database/overview")
+async def get_database_overview(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+    """Get database overview statistics (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Get table counts
+        users_count = db.query(func.count(User.id)).scalar()
+        prompts_count = db.query(func.count(Prompt.id)).scalar()
+        articles_count = db.query(func.count(Article.id)).scalar()
+        tokens_count = db.query(func.count(Token.id)).scalar()
+        
+        # Get recent activity
+        recent_users = db.query(User).order_by(User.created_at.desc()).limit(5).all()
+        recent_prompts = db.query(Prompt).order_by(Prompt.created_at.desc()).limit(5).all()
+        recent_articles = db.query(Article).order_by(Article.created_at.desc()).limit(5).all()
+        
+        # Get admin users
+        admin_users = db.query(User).filter(User.is_admin == True).all()
+        
+        return {
+            "counts": {
+                "users": users_count,
+                "prompts": prompts_count,
+                "articles": articles_count,
+                "tokens": tokens_count
+            },
+            "recent_activity": {
+                "users": [{"id": u.id, "email": u.email, "name": f"{u.first_name or ''} {u.last_name or ''}".strip(), "created_at": u.created_at.isoformat()} for u in recent_users],
+                "prompts": [{"id": p.id, "title": p.title, "category": p.category, "is_public": p.is_public, "created_at": p.created_at.isoformat()} for p in recent_prompts],
+                "articles": [{"id": a.id, "title": a.title, "category": a.category, "word_count": a.word_count, "created_at": a.created_at.isoformat()} for a in recent_articles]
+            },
+            "admin_users": [{"id": u.id, "email": u.email, "name": f"{u.first_name or ''} {u.last_name or ''}".strip(), "created_at": u.created_at.isoformat()} for u in admin_users]
+        }
+    except Exception as e:
+        logger.error(f"Error getting database overview: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get database overview")
+
+@app.get("/api/admin/database/users")
+async def get_all_users(current_user: User = Depends(require_auth), db: Session = Depends(get_db), skip: int = 0, limit: int = 50):
+    """Get all users (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        users = db.query(User).offset(skip).limit(limit).all()
+        total = db.query(func.count(User.id)).scalar()
+        
+        return {
+            "users": [
+                {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "auth_provider": user.auth_provider,
+                    "subscription_tier": user.subscription_tier,
+                    "is_active": user.is_active,
+                    "is_admin": user.is_admin,
+                    "created_at": user.created_at.isoformat(),
+                    "updated_at": user.updated_at.isoformat()
+                }
+                for user in users
+            ],
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
+        logger.error(f"Error getting users: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get users")
+
+@app.get("/api/admin/database/prompts")
+async def get_all_prompts_admin(current_user: User = Depends(require_auth), db: Session = Depends(get_db), skip: int = 0, limit: int = 50):
+    """Get all prompts (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        prompts = db.query(Prompt).offset(skip).limit(limit).all()
+        total = db.query(func.count(Prompt.id)).scalar()
+        
+        return {
+            "prompts": [
+                {
+                    "id": prompt.id,
+                    "title": prompt.title,
+                    "description": prompt.description,
+                    "category": prompt.category,
+                    "tags": prompt.tags,
+                    "is_public": prompt.is_public,
+                    "user_id": prompt.user_id,
+                    "word_count": prompt.word_count,
+                    "char_count": prompt.char_count,
+                    "created_at": prompt.created_at.isoformat(),
+                    "updated_at": prompt.updated_at.isoformat()
+                }
+                for prompt in prompts
+            ],
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
+        logger.error(f"Error getting prompts: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get prompts")
+
+@app.get("/api/admin/database/articles")
+async def get_all_articles_admin(current_user: User = Depends(require_auth), db: Session = Depends(get_db), skip: int = 0, limit: int = 50):
+    """Get all articles (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        articles = db.query(Article).offset(skip).limit(limit).all()
+        total = db.query(func.count(Article.id)).scalar()
+        
+        return {
+            "articles": [
+                {
+                    "id": article.id,
+                    "title": article.title,
+                    "category": article.category,
+                    "tags": article.tags,
+                    "user_id": article.user_id,
+                    "word_count": article.word_count,
+                    "char_count": article.char_count,
+                    "created_at": article.created_at.isoformat(),
+                    "updated_at": article.updated_at.isoformat()
+                }
+                for article in articles
+            ],
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
+        logger.error(f"Error getting articles: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get articles")
+
 # Startup event
 @app.on_event("startup")
 async def startup_event():

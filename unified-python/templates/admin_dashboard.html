@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0" x-data="adminDashboard()" x-init="loadDashboard()">
+    <!-- Admin Header -->
+    <div class="mb-8">
+        <div class="bg-gradient-to-r from-red-600 via-pink-600 to-purple-600 rounded-2xl shadow-xl p-8 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-4xl font-bold">Admin Dashboard</h1>
+                            <p class="text-red-100">Database Management & System Overview</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="hidden md:block">
+                    <div class="text-right">
+                        <div class="text-sm text-red-100">Admin Access</div>
+                        <div class="text-lg font-semibold">Full Database View</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Overview Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-3xl font-bold text-blue-600" x-text="overview.counts?.users || '...'"></div>
+                    <div class="text-sm text-gray-500 font-medium">Total Users</div>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-users text-blue-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-3xl font-bold text-purple-600" x-text="overview.counts?.prompts || '...'"></div>
+                    <div class="text-sm text-gray-500 font-medium">Total Prompts</div>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-lightbulb text-purple-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-3xl font-bold text-green-600" x-text="overview.counts?.articles || '...'"></div>
+                    <div class="text-sm text-gray-500 font-medium">Total Articles</div>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-newspaper text-green-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="text-3xl font-bold text-orange-600" x-text="overview.counts?.tokens || '...'"></div>
+                    <div class="text-sm text-gray-500 font-medium">API Tokens</div>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-key text-orange-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Tables Navigation -->
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-100 mb-8">
+        <div class="p-6 border-b border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Database Tables</h2>
+            <p class="text-gray-600">View and manage database content</p>
+        </div>
+        
+        <div class="p-6">
+            <div class="flex flex-wrap gap-3">
+                <button @click="activeTable = 'users'; loadTableData('users')" 
+                        :class="activeTable === 'users' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'"
+                        class="px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </button>
+                
+                <button @click="activeTable = 'prompts'; loadTableData('prompts')" 
+                        :class="activeTable === 'prompts' ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-600 hover:bg-purple-100'"
+                        class="px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Prompts</span>
+                </button>
+                
+                <button @click="activeTable = 'articles'; loadTableData('articles')" 
+                        :class="activeTable === 'articles' ? 'bg-green-600 text-white' : 'bg-green-50 text-green-600 hover:bg-green-100'"
+                        class="px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2">
+                    <i class="fas fa-newspaper"></i>
+                    <span>Articles</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Display -->
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-100" x-show="tableData">
+        <div class="p-6 border-b border-gray-100">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-gray-900 capitalize" x-text="activeTable + ' Data'"></h3>
+                <div class="text-sm text-gray-500">
+                    <span x-text="tableData?.total || 0"></span> total records
+                </div>
+            </div>
+        </div>
+        
+        <!-- Users Table -->
+        <div x-show="activeTable === 'users'" class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tier</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="user in tableData?.users || []" :key="user.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900" x-text="user.first_name + ' ' + user.last_name || 'N/A'"></div>
+                                <div class="text-sm text-gray-500" x-text="user.id"></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="user.email"></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full"
+                                      :class="user.auth_provider === 'google' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'"
+                                      x-text="user.auth_provider"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full"
+                                      :class="user.subscription_tier === 'premium' ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-800'"
+                                      x-text="user.subscription_tier"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span x-show="user.is_admin" class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Admin</span>
+                                <span x-show="!user.is_admin" class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">User</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="new Date(user.created_at).toLocaleDateString()"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Prompts Table -->
+        <div x-show="activeTable === 'prompts'" class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visibility</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stats</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="prompt in tableData?.prompts || []" :key="prompt.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900" x-text="prompt.title"></div>
+                                <div class="text-sm text-gray-500" x-text="prompt.description?.substring(0, 50) + '...' || 'No description'"></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full" x-text="prompt.category || 'Uncategorized'"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span x-show="prompt.is_public" class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Public</span>
+                                <span x-show="!prompt.is_public" class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Private</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div x-text="prompt.word_count + ' words'"></div>
+                                <div x-text="prompt.char_count + ' chars'"></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="prompt.user_id"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="new Date(prompt.created_at).toLocaleDateString()"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Articles Table -->
+        <div x-show="activeTable === 'articles'" class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stats</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tags</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="article in tableData?.articles || []" :key="article.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900" x-text="article.title"></div>
+                                <div class="text-sm text-gray-500" x-text="article.id"></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full" x-text="article.category || 'Uncategorized'"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div x-text="(article.word_count || 0) + ' words'"></div>
+                                <div x-text="(article.char_count || 0) + ' chars'"></div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">
+                                    <template x-for="tag in (article.tags || [])" :key="tag">
+                                        <span class="px-2 py-1 text-xs bg-indigo-100 text-indigo-800 rounded-full" x-text="tag"></span>
+                                    </template>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="article.user_id"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="new Date(article.created_at).toLocaleDateString()"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+            <div class="text-sm text-gray-500">
+                Showing <span x-text="tableData?.skip + 1 || 0"></span> to 
+                <span x-text="Math.min((tableData?.skip || 0) + (tableData?.limit || 0), tableData?.total || 0)"></span> of 
+                <span x-text="tableData?.total || 0"></span> results
+            </div>
+            <div class="flex space-x-2">
+                <button @click="previousPage()" 
+                        :disabled="currentPage <= 1"
+                        :class="currentPage <= 1 ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'"
+                        class="px-4 py-2 rounded-lg font-medium transition-colors">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <button @click="nextPage()" 
+                        :disabled="currentPage >= Math.ceil((tableData?.total || 0) / pageSize)"
+                        :class="currentPage >= Math.ceil((tableData?.total || 0) / pageSize) ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'"
+                        class="px-4 py-2 rounded-lg font-medium transition-colors">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="grid md:grid-cols-3 gap-6">
+        <!-- Recent Users -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-users text-blue-600 mr-2"></i>
+                    Recent Users
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <template x-for="user in overview.recent_activity?.users || []" :key="user.id">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-user text-blue-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-900" x-text="user.name || user.email"></div>
+                                <div class="text-xs text-gray-500" x-text="new Date(user.created_at).toLocaleDateString()"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Prompts -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-lightbulb text-purple-600 mr-2"></i>
+                    Recent Prompts
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <template x-for="prompt in overview.recent_activity?.prompts || []" :key="prompt.id">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-lightbulb text-purple-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-900 truncate" x-text="prompt.title"></div>
+                                <div class="text-xs text-gray-500">
+                                    <span x-text="prompt.category"></span> • 
+                                    <span x-text="new Date(prompt.created_at).toLocaleDateString()"></span>
+                                </div>
+                            </div>
+                            <div x-show="prompt.is_public" class="w-2 h-2 bg-green-400 rounded-full"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Articles -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100">
+            <div class="p-6 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center">
+                    <i class="fas fa-newspaper text-green-600 mr-2"></i>
+                    Recent Articles
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <template x-for="article in overview.recent_activity?.articles || []" :key="article.id">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-newspaper text-green-600 text-sm"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-900 truncate" x-text="article.title"></div>
+                                <div class="text-xs text-gray-500">
+                                    <span x-text="(article.word_count || 0) + ' words'"></span> • 
+                                    <span x-text="new Date(article.created_at).toLocaleDateString()"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="loading" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 shadow-2xl">
+            <div class="flex items-center space-x-3">
+                <div class="animate-spin w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+                <span class="text-gray-900 font-medium">Loading database data...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function adminDashboard() {
+    return {
+        overview: {},
+        tableData: null,
+        activeTable: 'users',
+        loading: false,
+        currentPage: 1,
+        pageSize: 50,
+        
+        async loadDashboard() {
+            this.loading = true;
+            try {
+                const response = await fetch('/api/admin/database/overview');
+                if (response.ok) {
+                    this.overview = await response.json();
+                    // Load users table by default
+                    await this.loadTableData('users');
+                } else {
+                    throw new Error('Failed to load dashboard');
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                alert('Error loading admin dashboard. Please check your admin permissions.');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async loadTableData(table) {
+            this.loading = true;
+            this.activeTable = table;
+            try {
+                const skip = (this.currentPage - 1) * this.pageSize;
+                const response = await fetch(`/api/admin/database/${table}?skip=${skip}&limit=${this.pageSize}`);
+                if (response.ok) {
+                    this.tableData = await response.json();
+                } else {
+                    throw new Error(`Failed to load ${table} data`);
+                }
+            } catch (error) {
+                console.error(`Error loading ${table}:`, error);
+                alert(`Error loading ${table} data`);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async nextPage() {
+            if (this.currentPage < Math.ceil((this.tableData?.total || 0) / this.pageSize)) {
+                this.currentPage++;
+                await this.loadTableData(this.activeTable);
+            }
+        },
+        
+        async previousPage() {
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                await this.loadTableData(this.activeTable);
+            }
+        }
+    }
+}
+</script>
+{% endblock %}
