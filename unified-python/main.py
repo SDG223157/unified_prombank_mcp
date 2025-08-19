@@ -598,7 +598,8 @@ async def auth_status(request: Request, current_user: User = Depends(get_current
                 "email": current_user.email,
                 "first_name": current_user.first_name,
                 "last_name": current_user.last_name,
-                "profile_picture": current_user.profile_picture
+                "profile_picture": current_user.profile_picture,
+                "is_admin": current_user.is_admin
             }
         }
     else:
@@ -2011,6 +2012,41 @@ async def get_all_articles_admin(current_user: User = Depends(require_auth), db:
     except Exception as e:
         logger.error(f"Error getting articles: {e}")
         raise HTTPException(status_code=500, detail="Failed to get articles")
+
+@app.post("/api/admin/set-admin-user")
+async def set_admin_user_endpoint(request: Request, db: Session = Depends(get_db)):
+    """Set isky999@gmail.com as admin user - one-time setup endpoint"""
+    admin_email = 'isky999@gmail.com'
+    
+    try:
+        # Check if user exists
+        existing_user = db.query(User).filter(User.email == admin_email).first()
+        
+        if not existing_user:
+            raise HTTPException(status_code=404, detail=f"User with email {admin_email} not found. Please sign in first.")
+        
+        # Update user to admin
+        existing_user.is_admin = True
+        db.commit()
+        db.refresh(existing_user)
+        
+        logger.info(f"✅ Admin privileges granted to {admin_email}")
+        
+        return {
+            "success": True,
+            "message": f"Admin privileges granted to {admin_email}",
+            "user": {
+                "id": existing_user.id,
+                "email": existing_user.email,
+                "name": f"{existing_user.first_name or ''} {existing_user.last_name or ''}".strip(),
+                "is_admin": existing_user.is_admin
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error setting admin user: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to set admin user: {str(e)}")
 
 # Startup event
 @app.on_event("startup")
