@@ -53,7 +53,7 @@ const updatePromptValidation = [
 // Get public prompts (no auth required)
 router.get('/public', async (req, res) => {
   try {
-    const { category, tags, search, page = 1, limit = 20 } = req.query;
+    const { category, tags, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
     const where = {
       isPublic: true,
@@ -82,6 +82,20 @@ router.get('/public', async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Validate and build sort options
+    const validSortFields = {
+      'title': 'title',
+      'category': 'category', 
+      'createdAt': 'createdAt',
+      'created_at': 'createdAt' // Support both formats
+    };
+    
+    const sortField = validSortFields[sortBy] || 'createdAt';
+    const sortDirection = sortOrder.toLowerCase() === 'asc' ? 'asc' : 'desc';
+    
+    const orderBy = {};
+    orderBy[sortField] = sortDirection;
+
     const prisma = await getPrisma();
     const [prompts, total] = await Promise.all([
       prisma.prompt.findMany({
@@ -96,7 +110,7 @@ router.get('/public', async (req, res) => {
             }
           }
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: parseInt(limit)
       }),
@@ -125,7 +139,7 @@ router.get('/public', async (req, res) => {
 // Get all prompts (requires auth, includes private if owned by user) - supports both JWT and API tokens
 router.get('/', authenticateEither, async (req, res) => {
   try {
-    const { category, tags, search, isPublic, page = 1, limit = 20 } = req.query;
+    const { category, tags, search, isPublic, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     const userId = req.user.id;
     
     const where = {
@@ -165,6 +179,20 @@ router.get('/', authenticateEither, async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Validate and build sort options
+    const validSortFields = {
+      'title': 'title',
+      'category': 'category', 
+      'createdAt': 'createdAt',
+      'created_at': 'createdAt' // Support both formats
+    };
+    
+    const sortField = validSortFields[sortBy] || 'createdAt';
+    const sortDirection = sortOrder.toLowerCase() === 'asc' ? 'asc' : 'desc';
+    
+    const orderBy = {};
+    orderBy[sortField] = sortDirection;
+
     const [prompts, total] = await Promise.all([
       prisma.prompt.findMany({
         where,
@@ -178,7 +206,7 @@ router.get('/', authenticateEither, async (req, res) => {
             }
           }
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: parseInt(limit)
       }),

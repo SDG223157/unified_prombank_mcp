@@ -169,14 +169,41 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Title
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                @click="sortBy('title')">
+                                <div class="flex items-center space-x-1">
+                                    <span>Title</span>
+                                    <div class="flex flex-col">
+                                        <i class="fas fa-caret-up text-xs" 
+                                           :class="sortField === 'title' && sortOrder === 'asc' ? 'text-blue-500' : 'text-gray-300'"></i>
+                                        <i class="fas fa-caret-down text-xs -mt-1" 
+                                           :class="sortField === 'title' && sortOrder === 'desc' ? 'text-blue-500' : 'text-gray-300'"></i>
+                                    </div>
+                                </div>
                             </th>
-                            <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Category
+                            <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                @click="sortBy('category')">
+                                <div class="flex items-center space-x-1">
+                                    <span>Category</span>
+                                    <div class="flex flex-col">
+                                        <i class="fas fa-caret-up text-xs" 
+                                           :class="sortField === 'category' && sortOrder === 'asc' ? 'text-blue-500' : 'text-gray-300'"></i>
+                                        <i class="fas fa-caret-down text-xs -mt-1" 
+                                           :class="sortField === 'category' && sortOrder === 'desc' ? 'text-blue-500' : 'text-gray-300'"></i>
+                                    </div>
+                                </div>
                             </th>
-                            <th class="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Created
+                            <th class="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                @click="sortBy('created_at')">
+                                <div class="flex items-center space-x-1">
+                                    <span>Created</span>
+                                    <div class="flex flex-col">
+                                        <i class="fas fa-caret-up text-xs" 
+                                           :class="sortField === 'created_at' && sortOrder === 'asc' ? 'text-blue-500' : 'text-gray-300'"></i>
+                                        <i class="fas fa-caret-down text-xs -mt-1" 
+                                           :class="sortField === 'created_at' && sortOrder === 'desc' ? 'text-blue-500' : 'text-gray-300'"></i>
+                                    </div>
+                                </div>
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions
@@ -228,6 +255,8 @@ function promptsDisplayData() {
         prompts: [],
         loading: true,
         viewMode: 'grid',
+        sortField: 'created_at',
+        sortOrder: 'desc',
         
         init() {
             // Load saved view mode from localStorage
@@ -236,15 +265,37 @@ function promptsDisplayData() {
                 this.viewMode = savedViewMode;
             }
             
+            // Load saved sort preferences
+            const savedSortField = localStorage.getItem('prompts_sort_field');
+            const savedSortOrder = localStorage.getItem('prompts_sort_order');
+            if (savedSortField && ['title', 'category', 'created_at'].includes(savedSortField)) {
+                this.sortField = savedSortField;
+            }
+            if (savedSortOrder && ['asc', 'desc'].includes(savedSortOrder)) {
+                this.sortOrder = savedSortOrder;
+            }
+            
             // Watch for viewMode changes and save to localStorage
             this.$watch('viewMode', (value) => {
                 localStorage.setItem('prompts_view_mode', value);
+            });
+            
+            // Watch for sort changes and save to localStorage
+            this.$watch('sortField', (value) => {
+                localStorage.setItem('prompts_sort_field', value);
+            });
+            this.$watch('sortOrder', (value) => {
+                localStorage.setItem('prompts_sort_order', value);
             });
         },
         
         async loadPrompts() {
             try {
-                const response = await fetch('/api/prompts');
+                const params = new URLSearchParams({
+                    sortBy: this.sortField,
+                    sortOrder: this.sortOrder
+                });
+                const response = await fetch(`/api/prompts?${params}`);
                 const data = await response.json();
                 this.prompts = data.prompts || [];
             } catch (error) {
@@ -252,6 +303,20 @@ function promptsDisplayData() {
             } finally {
                 this.loading = false;
             }
+        },
+        
+        sortBy(field) {
+            if (this.sortField === field) {
+                // Toggle sort order if same field
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                // Set new field and default to ascending
+                this.sortField = field;
+                this.sortOrder = 'asc';
+            }
+            // Reload prompts with new sorting
+            this.loading = true;
+            this.loadPrompts();
         },
         
         async deletePrompt(promptId) {

@@ -59,7 +59,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
 router.get('/prompts', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { category, tags, search, page = 1, limit = 20 } = req.query;
+    const { category, tags, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
     const where = { userId };
 
@@ -86,10 +86,24 @@ router.get('/prompts', authenticateToken, async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Validate and build sort options
+    const validSortFields = {
+      'title': 'title',
+      'category': 'category', 
+      'createdAt': 'createdAt',
+      'created_at': 'createdAt' // Support both formats
+    };
+    
+    const sortField = validSortFields[sortBy] || 'createdAt';
+    const sortDirection = sortOrder.toLowerCase() === 'asc' ? 'asc' : 'desc';
+    
+    const orderBy = {};
+    orderBy[sortField] = sortDirection;
+
     const [prompts, total] = await Promise.all([
       prisma.prompt.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: parseInt(limit)
       }),

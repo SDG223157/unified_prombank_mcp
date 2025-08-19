@@ -201,11 +201,39 @@ async def health_check():
 
 # API routes
 @app.get("/api/prompts")
-async def get_prompts(db: Session = Depends(get_db)):
-    """Get all prompts"""
+async def get_prompts(
+    sortBy: str = "created_at",
+    sortOrder: str = "desc",
+    db: Session = Depends(get_db)
+):
+    """Get all prompts with sorting support"""
     try:
-        # Get prompts from database
-        prompts = db.query(Prompt).limit(10).all()
+        # Validate sort parameters
+        valid_sort_fields = {
+            "title": Prompt.title,
+            "category": Prompt.category,
+            "created_at": Prompt.created_at,
+            "createdAt": Prompt.created_at  # Support both formats
+        }
+        
+        if sortBy not in valid_sort_fields:
+            sortBy = "created_at"
+        
+        if sortOrder.lower() not in ["asc", "desc"]:
+            sortOrder = "desc"
+        
+        # Build query with sorting
+        query = db.query(Prompt)
+        
+        # Apply sorting
+        sort_column = valid_sort_fields[sortBy]
+        if sortOrder.lower() == "desc":
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+        
+        prompts = query.limit(10).all()
+        
         return {
             "prompts": [
                 {
