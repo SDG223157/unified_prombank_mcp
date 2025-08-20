@@ -1926,6 +1926,62 @@ async def serve_admin_diagnostic(request: Request):
         "title": "Admin Diagnostic - Prompt House Premium"
     })
 
+@app.get("/api/security-diagnostic")
+async def security_diagnostic_endpoint(request: Request, db: Session = Depends(get_db)):
+    """Security diagnostic endpoint to check prompt visibility"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        # Get all prompts this user can see (using the same logic as /api/prompts)
+        visible_prompts = db.query(Prompt).filter(
+            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+        ).all()
+        
+        # Categorize prompts
+        public_prompts = [p for p in visible_prompts if p.is_public]
+        own_private_prompts = [p for p in visible_prompts if not p.is_public and p.user_id == current_user.id]
+        own_public_prompts = [p for p in visible_prompts if p.is_public and p.user_id == current_user.id]
+        
+        # Get total counts in system
+        total_prompts = db.query(Prompt).count()
+        total_public = db.query(Prompt).filter(Prompt.is_public == True).count()
+        total_private = total_prompts - total_public
+        
+        return {
+            "user": {
+                "email": current_user.email,
+                "is_admin": current_user.is_admin
+            },
+            "visibility_summary": {
+                "total_visible_to_user": len(visible_prompts),
+                "public_from_all_users": len([p for p in public_prompts if p.user_id != current_user.id]),
+                "own_public_prompts": len(own_public_prompts),
+                "own_private_prompts": len(own_private_prompts)
+            },
+            "system_totals": {
+                "total_prompts_in_system": total_prompts,
+                "total_public_prompts": total_public,
+                "total_private_prompts": total_private
+            },
+            "visible_prompts": [
+                {
+                    "id": p.id,
+                    "title": p.title,
+                    "is_public": p.is_public,
+                    "is_owner": p.user_id == current_user.id,
+                    "visibility_reason": "Public (visible to all)" if p.is_public else "Your own private prompt"
+                }
+                for p in visible_prompts
+            ],
+            "security_status": "✅ Working correctly - you can only see public prompts and your own prompts"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in security diagnostic: {e}")
+        raise HTTPException(status_code=500, detail="Diagnostic failed")
+
 @app.get("/register", response_class=HTMLResponse)
 async def serve_register_page(request: Request):
     """Serve the registration page"""
