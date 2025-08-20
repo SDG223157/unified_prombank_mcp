@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Account Settings</h1>
+        <p class="mt-2 text-gray-600">Manage your account preferences and security settings</p>
+    </div>
+
+    <!-- Settings Cards -->
+    <div class="grid gap-6 lg:grid-cols-2">
+        <!-- Account Information -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <i class="fas fa-user mr-3"></i>
+                    Account Information
+                </h2>
+            </div>
+            <div class="p-6" x-data="userSettings()" x-init="loadUserInfo()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                        <input type="email" x-model="user.email" disabled 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+                        <p class="text-xs text-gray-500 mt-1">Email address cannot be changed</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                            <input type="text" x-model="user.first_name" disabled
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                            <input type="text" x-model="user.last_name" disabled
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Authentication Method</label>
+                        <div class="flex items-center px-4 py-3 bg-gray-50 rounded-lg border border-gray-300">
+                            <i x-show="user.auth_provider === 'google'" class="fab fa-google text-red-500 mr-3"></i>
+                            <i x-show="user.auth_provider === 'local'" class="fas fa-envelope text-indigo-500 mr-3"></i>
+                            <span x-text="user.auth_provider === 'google' ? 'Google OAuth' : 'Email & Password'" 
+                                  class="text-gray-700 font-medium"></span>
+                            <span x-show="user.is_admin" class="ml-auto px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                                ADMIN
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Account Created</label>
+                        <input type="text" x-model="formatDate(user.created_at)" disabled
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Password Settings (only for local auth users) -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden" x-data="passwordSettings()">
+            <div class="bg-gradient-to-r from-orange-500 to-red-600 px-6 py-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <i class="fas fa-lock mr-3"></i>
+                    Password & Security
+                </h2>
+            </div>
+            <div class="p-6">
+                <!-- Password Change Form (Local Auth Only) -->
+                <div x-data="userSettings()" x-init="loadUserInfo()">
+                    <div x-show="user.auth_provider === 'local'">
+                        <form @submit.prevent="changePassword()" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                                <input type="password" x-model="currentPassword" required
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                                <input type="password" x-model="newPassword" required minlength="8"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                <p class="text-xs text-gray-500 mt-1">Must be at least 8 characters with letters and numbers</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                                <input type="password" x-model="confirmPassword" required
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            
+                            <!-- Error/Success Messages -->
+                            <div x-show="passwordError" x-text="passwordError" 
+                                 class="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm"></div>
+                            <div x-show="passwordSuccess" x-text="passwordSuccess"
+                                 class="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm"></div>
+                            
+                            <button type="submit" :disabled="loading"
+                                    class="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-red-700 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200">
+                                <span x-show="!loading" class="flex items-center justify-center">
+                                    <i class="fas fa-key mr-2"></i>
+                                    Change Password
+                                </span>
+                                <span x-show="loading" class="flex items-center justify-center">
+                                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                                    Updating...
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Google Auth Users -->
+                    <div x-show="user.auth_provider === 'google'" class="text-center py-8">
+                        <i class="fab fa-google text-6xl text-red-500 mb-4"></i>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Google Account</h3>
+                        <p class="text-gray-600 mb-4">Your account uses Google authentication. Password changes must be done through your Google account.</p>
+                        <a href="https://myaccount.google.com/security" target="_blank" 
+                           class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            <i class="fab fa-google mr-2"></i>
+                            Manage Google Account
+                            <i class="fas fa-external-link-alt ml-2 text-xs"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Actions -->
+    <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div class="bg-gradient-to-r from-gray-500 to-gray-700 px-6 py-4">
+            <h2 class="text-xl font-semibold text-white flex items-center">
+                <i class="fas fa-cogs mr-3"></i>
+                Account Actions
+            </h2>
+        </div>
+        <div class="p-6">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="p-4 border border-blue-200 rounded-lg bg-blue-50">
+                    <h3 class="font-semibold text-blue-900 mb-2">API Tokens</h3>
+                    <p class="text-sm text-blue-700 mb-3">Manage your API tokens for programmatic access</p>
+                    <a href="/tokens" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                        <i class="fas fa-key mr-2"></i>
+                        Manage Tokens
+                    </a>
+                </div>
+                <div class="p-4 border border-green-200 rounded-lg bg-green-50">
+                    <h3 class="font-semibold text-green-900 mb-2">Data Export</h3>
+                    <p class="text-sm text-green-700 mb-3">Export your prompts and articles</p>
+                    <button onclick="alert('Export feature coming soon!')" 
+                            class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
+                        <i class="fas fa-download mr-2"></i>
+                        Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function userSettings() {
+        return {
+            user: {},
+            loading: false,
+            
+            async loadUserInfo() {
+                try {
+                    const response = await fetch('/api/auth/me');
+                    if (response.ok) {
+                        this.user = await response.json();
+                    }
+                } catch (error) {
+                    console.error('Error loading user info:', error);
+                }
+            },
+            
+            formatDate(dateString) {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+    }
+    
+    function passwordSettings() {
+        return {
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+            passwordError: '',
+            passwordSuccess: '',
+            loading: false,
+            
+            async changePassword() {
+                this.passwordError = '';
+                this.passwordSuccess = '';
+                
+                // Validation
+                if (this.newPassword.length < 8) {
+                    this.passwordError = 'Password must be at least 8 characters long';
+                    return;
+                }
+                
+                if (!/[A-Za-z]/.test(this.newPassword)) {
+                    this.passwordError = 'Password must contain at least one letter';
+                    return;
+                }
+                
+                if (!/[0-9]/.test(this.newPassword)) {
+                    this.passwordError = 'Password must contain at least one number';
+                    return;
+                }
+                
+                if (this.newPassword !== this.confirmPassword) {
+                    this.passwordError = 'New passwords do not match';
+                    return;
+                }
+                
+                this.loading = true;
+                
+                try {
+                    const response = await fetch('/api/auth/change-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            current_password: this.currentPassword,
+                            new_password: this.newPassword
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        this.passwordSuccess = 'Password changed successfully!';
+                        this.currentPassword = '';
+                        this.newPassword = '';
+                        this.confirmPassword = '';
+                    } else {
+                        this.passwordError = data.detail || 'Password change failed';
+                    }
+                } catch (error) {
+                    this.passwordError = 'Network error. Please try again.';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

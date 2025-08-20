@@ -1905,6 +1905,30 @@ async def serve_admin_diagnostic(request: Request):
         "title": "Admin Diagnostic - Prompt House Premium"
     })
 
+@app.get("/register", response_class=HTMLResponse)
+async def serve_register_page(request: Request):
+    """Serve the registration page"""
+    return templates.TemplateResponse("register.html", {
+        "request": request,
+        "title": "Register - Prompt House Premium"
+    })
+
+@app.get("/login", response_class=HTMLResponse)
+async def serve_login_page(request: Request):
+    """Serve the login page"""
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "title": "Login - Prompt House Premium"
+    })
+
+@app.get("/settings", response_class=HTMLResponse)
+async def serve_settings_page(request: Request, current_user: User = Depends(require_auth)):
+    """Serve the settings page (authenticated users only)"""
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "title": "Account Settings - Prompt House Premium"
+    })
+
 @app.get("/api/admin/database/overview")
 async def get_database_overview(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Get database overview statistics (admin only)"""
@@ -2084,8 +2108,10 @@ async def set_admin_user_endpoint(request: Request, db: Session = Depends(get_db
 # Include admin diagnostic endpoints
 from admin_diagnostic_api import admin_diagnostic_router
 from session_diagnostic_api import session_diagnostic_router
+from email_auth import email_auth_router
 app.include_router(admin_diagnostic_router)
 app.include_router(session_diagnostic_router)
+app.include_router(email_auth_router)
 
 # Startup event
 @app.on_event("startup")
