@@ -1897,6 +1897,14 @@ async def serve_admin_dashboard(request: Request, current_user: User = Depends(r
         "title": "Admin Dashboard - Prompt House Premium"
     })
 
+@app.get("/admin-diagnostic", response_class=HTMLResponse)
+async def serve_admin_diagnostic(request: Request):
+    """Serve the admin diagnostic page (no auth required for debugging)"""
+    return templates.TemplateResponse("admin_diagnostic.html", {
+        "request": request,
+        "title": "Admin Diagnostic - Prompt House Premium"
+    })
+
 @app.get("/api/admin/database/overview")
 async def get_database_overview(current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
     """Get database overview statistics (admin only)"""
@@ -2072,6 +2080,10 @@ async def set_admin_user_endpoint(request: Request, db: Session = Depends(get_db
         logger.error(f"❌ Error setting admin user: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to set admin user: {str(e)}")
+
+# Include admin diagnostic endpoints
+from admin_diagnostic_api import admin_diagnostic_router
+app.include_router(admin_diagnostic_router)
 
 # Startup event
 @app.on_event("startup")

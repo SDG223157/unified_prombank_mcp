@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin User Diagnostic - Prompt House Premium</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background-color 0.2s;
+        }
+        .btn:hover {
+            background: #4338ca;
+        }
+        .btn-danger {
+            background: #dc2626;
+        }
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        .btn-success {
+            background: #059669;
+        }
+        .btn-success:hover {
+            background: #047857;
+        }
+        .result {
+            background: #f1f5f9;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+            color: #991b1b;
+        }
+        .success {
+            background: #f0fdf4;
+            border-left-color: #059669;
+            color: #065f46;
+        }
+        .warning {
+            background: #fffbeb;
+            border-left-color: #d97706;
+            color: #92400e;
+        }
+        .user-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .expected-admin {
+            border-left: 4px solid #059669;
+        }
+        .unauthorized-admin {
+            border-left: 4px solid #dc2626;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        .stat-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Admin User Diagnostic Tool</h1>
+        <p>Investigate and fix admin user privileges in your Coolify deployment</p>
+    </div>
+
+    <div class="card">
+        <h2>Quick Actions</h2>
+        <button class="btn" onclick="checkAllAdmins()">Check All Admin Users</button>
+        <button class="btn" onclick="checkSpecificUser('chenjg223157@gmail.com')">Check chenjg223157@gmail.com</button>
+        <button class="btn" onclick="checkSpecificUser('isky999@gmail.com')">Check Expected Admin</button>
+        <button class="btn" onclick="getDatabaseStats()">Get Database Stats</button>
+        <button class="btn btn-danger" onclick="fixAdminPrivileges()" id="fixBtn">🔧 Fix Admin Privileges</button>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        Processing request...
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = '/api/admin-diagnostic';
+        
+        function showLoading(show = true) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+        
+        function showResult(content, type = 'info') {
+            const results = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = content;
+            results.appendChild(resultDiv);
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function apiCall(endpoint, method = 'GET') {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+                throw error;
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function checkAllAdmins() {
+            clearResults();
+            try {
+                const data = await apiCall('/check-all-admins');
+                
+                let html = `<h3>📊 Admin Users Report</h3>`;
+                html += `<div class="stats-grid">`;
+                html += `<div class="stat-item"><div class="stat-number">${data.total_admin_users}</div><div class="stat-label">Total Admin Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.expected_admin_found ? '✅' : '❌'}</div><div class="stat-label">Expected Admin Found</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.unauthorized_admins.length}</div><div class="stat-label">Unauthorized Admins</div></div>`;
+                html += `</div>`;
+                
+                if (data.admin_users.length > 0) {
+                    html += `<h4>Admin Users:</h4>`;
+                    data.admin_users.forEach(user => {
+                        const isExpected = user.email === 'isky999@gmail.com';
+                        const cardClass = isExpected ? 'expected-admin' : 'unauthorized-admin';
+                        html += `
+                            <div class="user-card ${cardClass}">
+                                <strong>${isExpected ? '✅' : '⚠️'} ${user.email}</strong><br>
+                                Name: ${user.first_name || 'N/A'} ${user.last_name || 'N/A'}<br>
+                                Auth Provider: ${user.auth_provider}<br>
+                                Active: ${user.is_active ? 'Yes' : 'No'}<br>
+                                Created: ${user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}<br>
+                                ${isExpected ? '<em>This is the expected admin user</em>' : '<em>This user should NOT be admin</em>'}
+                            </div>
+                        `;
+                    });
+                }
+                
+                if (data.unauthorized_admins.length > 0) {
+                    html += `<div class="result warning">⚠️ Found ${data.unauthorized_admins.length} unauthorized admin user(s). Consider using the "Fix Admin Privileges" button.</div>`;
+                }
+                
+                showResult(html, data.unauthorized_admins.length === 0 ? 'success' : 'warning');
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+        
+        async function checkSpecificUser(email) {
+            clearResults();
+            try {
+                const data = await apiCall(`/check-user/${encodeURIComponent(email)}`);
+                
+                let html = `<h3>👤 User Details: ${email}</h3>`;
+                const user = data.user_details;
+                const statusIcon = data.admin_status_correct ? '✅' : '⚠️';
+                
+                html += `
+                    <div class="user-card ${data.is_expected_admin ? 'expected-admin' : (user.is_admin ? 'unauthorized-admin' : '')}">
+                        <strong>${statusIcon} ${user.email}</strong><br>
+                        Name: ${user.first_name || 'N/A'} ${user.last_name || 'N/A'}<br>
+                        Is Admin: ${user.is_admin ? 'Yes' : 'No'}<br>
+                        Should Be Admin: ${data.should_be_admin ? 'Yes' : 'No'}<br>
+                        Auth Provider: ${user.auth_provider}<br>
+                        Active: ${user.is_active ? 'Yes' : 'No'}<br>
+                        Created: ${user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}<br>
+                        Updated: ${user.updated_at ? new Date(user.updated_at).toLocaleString() : 'N/A'}<br>
+                        <br>
+                        <strong>Status: ${data.admin_status_correct ? '✅ Correct' : '⚠️ Incorrect'}</strong>
+                    </div>
+                `;
+                
+                if (!data.admin_status_correct) {
+                    html += `<div class="result warning">⚠️ This user's admin status is incorrect and should be fixed.</div>`;
+                }
+                
+                showResult(html, data.admin_status_correct ? 'success' : 'warning');
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+        
+        async function getDatabaseStats() {
+            clearResults();
+            try {
+                const data = await apiCall('/database-stats');
+                
+                let html = `<h3>📈 Database Statistics</h3>`;
+                html += `<div class="stats-grid">`;
+                html += `<div class="stat-item"><div class="stat-number">${data.total_users}</div><div class="stat-label">Total Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.active_users}</div><div class="stat-label">Active Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.admin_users}</div><div class="stat-label">Admin Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.google_auth_users}</div><div class="stat-label">Google Auth Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.local_auth_users}</div><div class="stat-label">Local Auth Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.inactive_users}</div><div class="stat-label">Inactive Users</div></div>`;
+                html += `</div>`;
+                
+                showResult(html, 'success');
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+        
+        async function fixAdminPrivileges() {
+            if (!confirm('⚠️ This will remove admin privileges from all unauthorized users and ensure only isky999@gmail.com has admin privileges. Are you sure?')) {
+                return;
+            }
+            
+            clearResults();
+            try {
+                const data = await apiCall('/fix-admin-privileges', 'POST');
+                
+                let html = `<h3>🔧 Admin Privileges Fixed</h3>`;
+                html += `<div class="stats-grid">`;
+                html += `<div class="stat-item"><div class="stat-number">${data.changes_made.unauthorized_admins_removed}</div><div class="stat-label">Unauthorized Admins Removed</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.changes_made.expected_admin_updated ? '✅' : '➖'}</div><div class="stat-label">Expected Admin Updated</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.after_fix.total_admins}</div><div class="stat-label">Final Admin Count</div></div>`;
+                html += `</div>`;
+                
+                html += `<h4>Before Fix:</h4>`;
+                html += `<p>Admin users: ${data.before_fix.admin_emails.join(', ') || 'None'}</p>`;
+                
+                html += `<h4>After Fix:</h4>`;
+                html += `<p>Admin users: ${data.after_fix.admin_emails.join(', ') || 'None'}</p>`;
+                
+                if (data.warning) {
+                    html += `<div class="result warning">⚠️ ${data.warning}</div>`;
+                }
+                
+                html += `<div class="result success">✅ ${data.message}</div>`;
+                
+                showResult(html, 'success');
+            } catch (error) {
+                // Error already shown by apiCall
+            }
+        }
+        
+        // Auto-load stats on page load
+        window.addEventListener('load', () => {
+            getDatabaseStats();
+        });
+    </script>
+</body>
+</html>
