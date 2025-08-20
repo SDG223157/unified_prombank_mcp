@@ -224,11 +224,17 @@ async def health_check():
 # API routes
 @app.get("/api/prompts")
 async def get_prompts(
+    request: Request,
     sortBy: str = "created_at",
     sortOrder: str = "desc",
     db: Session = Depends(get_db)
 ):
-    """Get all prompts with sorting support"""
+    """Get prompts accessible to the current user (public + user's own) with sorting support"""
+    # Require authentication
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     try:
         # Validate sort parameters
         valid_sort_fields = {
@@ -244,8 +250,11 @@ async def get_prompts(
         if sortOrder.lower() not in ["asc", "desc"]:
             sortOrder = "desc"
         
-        # Build query with sorting
-        query = db.query(Prompt)
+        # Build query with proper access control
+        # Users can see: public prompts OR their own prompts (public or private)
+        query = db.query(Prompt).filter(
+            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+        )
         
         # Apply sorting
         sort_column = valid_sort_fields[sortBy]
@@ -254,7 +263,7 @@ async def get_prompts(
         else:
             query = query.order_by(sort_column.asc())
         
-        prompts = query.limit(10).all()
+        prompts = query.limit(50).all()
         
         return {
             "prompts": [
@@ -264,6 +273,8 @@ async def get_prompts(
                     "description": prompt.description,
                     "content": prompt.content,
                     "category": prompt.category,
+                    "is_public": prompt.is_public,
+                    "is_owner": prompt.user_id == current_user.id,
                     "created_at": prompt.created_at.isoformat() if prompt.created_at else None
                 }
                 for prompt in prompts
@@ -309,13 +320,22 @@ async def create_prompt(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/prompts/{prompt_id}")
-async def get_prompt(prompt_id: str, db: Session = Depends(get_db)):
-    """Get a specific prompt by ID"""
+async def get_prompt(prompt_id: str, request: Request, db: Session = Depends(get_db)):
+    """Get a specific prompt by ID (with proper access control)"""
+    # Require authentication
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     try:
-        prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+        # Find prompt with proper access control
+        prompt = db.query(Prompt).filter(
+            Prompt.id == prompt_id,
+            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+        ).first()
         
         if not prompt:
-            raise HTTPException(status_code=404, detail="Prompt not found")
+            raise HTTPException(status_code=404, detail="Prompt not found or access denied")
         
         return {
             "id": prompt.id,
@@ -325,6 +345,7 @@ async def get_prompt(prompt_id: str, db: Session = Depends(get_db)):
             "category": prompt.category,
             "tags": prompt.tags or [],
             "is_public": prompt.is_public,
+            "is_owner": prompt.user_id == current_user.id,
             "variables": prompt.variables or [],
             "prompt_metadata": prompt.prompt_metadata or {},
             "created_at": prompt.created_at.isoformat() if prompt.created_at else None,
