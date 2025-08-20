@@ -14,7 +14,14 @@ from fastapi import APIRouter, HTTPException, Depends, Request, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, validator
+try:
+    from pydantic import EmailStr
+    EMAIL_VALIDATION_AVAILABLE = True
+except ImportError:
+    # Fallback if email-validator is not available
+    EmailStr = str
+    EMAIL_VALIDATION_AVAILABLE = False
 from database import get_db, User
 from auth import create_access_token, get_current_user
 import logging
@@ -27,12 +34,24 @@ email_auth_router = APIRouter(prefix="/api/auth", tags=["email-auth"])
 # Templates
 templates = Jinja2Templates(directory="templates")
 
+# Email validation function
+def validate_email(email: str) -> bool:
+    """Basic email validation"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
 # Pydantic models for request validation
 class UserRegistration(BaseModel):
-    email: EmailStr
+    email: str
     password: str
     first_name: str
     last_name: str
+    
+    @validator('email')
+    def validate_email_format(cls, v):
+        if not validate_email(v):
+            raise ValueError('Invalid email format')
+        return v.lower().strip()
     
     @validator('password')
     def validate_password(cls, v):
@@ -53,11 +72,23 @@ class UserRegistration(BaseModel):
         return v.strip()
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
+    
+    @validator('email')
+    def validate_email_format(cls, v):
+        if not validate_email(v):
+            raise ValueError('Invalid email format')
+        return v.lower().strip()
 
 class PasswordReset(BaseModel):
-    email: EmailStr
+    email: str
+    
+    @validator('email')
+    def validate_email_format(cls, v):
+        if not validate_email(v):
+            raise ValueError('Invalid email format')
+        return v.lower().strip()
 
 class PasswordChange(BaseModel):
     current_password: str
