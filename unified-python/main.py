@@ -358,8 +358,13 @@ async def get_prompt(prompt_id: str, request: Request, db: Session = Depends(get
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.put("/api/prompts/{prompt_id}")
-async def update_prompt(prompt_id: str, request: Request, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+async def update_prompt(prompt_id: str, request: Request, db: Session = Depends(get_db)):
     """Update a specific prompt"""
+    # Support both session and API token authentication
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     try:
         prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
         
@@ -415,8 +420,13 @@ async def update_prompt(prompt_id: str, request: Request, current_user: User = D
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.delete("/api/prompts/{prompt_id}")
-async def delete_prompt(prompt_id: str, current_user: User = Depends(require_auth), db: Session = Depends(get_db)):
+async def delete_prompt(prompt_id: str, request: Request, db: Session = Depends(get_db)):
     """Delete a specific prompt"""
+    # Support both session and API token authentication
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     try:
         prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
         
