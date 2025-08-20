@@ -154,6 +154,15 @@
         <button class="btn btn-danger" onclick="fixAdminPrivileges()" id="fixBtn">🔧 Fix Admin Privileges</button>
     </div>
 
+    <div class="card">
+        <h2>🔍 Session Diagnostics</h2>
+        <button class="btn btn-success" onclick="getCurrentUser()">Check Current Logged-In User</button>
+        <button class="btn" onclick="searchUserByEmail('chenjg223157@gmail.com')">Deep Search chenjg223157@gmail.com</button>
+        <button class="btn" onclick="getAllUsersDetailed()">Get All Users (Detailed)</button>
+        <button class="btn" onclick="debugAuthFlow()">Debug Auth Flow</button>
+        <button class="btn btn-danger" onclick="fixSpecificUser('chenjg223157@gmail.com')">Remove Admin from chenjg223157@gmail.com</button>
+    </div>
+
     <div class="loading" id="loading">
         <div class="spinner"></div>
         Processing request...
@@ -163,6 +172,7 @@
 
     <script>
         const API_BASE = '/api/admin-diagnostic';
+        const SESSION_API_BASE = '/api/session-diagnostic';
         
         function showLoading(show = true) {
             document.getElementById('loading').style.display = show ? 'block' : 'none';
@@ -334,6 +344,209 @@
             }
         }
         
+        // Session diagnostic functions
+        async function getCurrentUser() {
+            clearResults();
+            try {
+                const data = await fetch(`${SESSION_API_BASE}/current-user`).then(r => r.json());
+                
+                let html = `<h3>👤 Current Logged-In User</h3>`;
+                
+                if (data.authenticated) {
+                    const user = data.user;
+                    const analysis = data.admin_status_analysis;
+                    
+                    html += `
+                        <div class="user-card ${analysis.admin_issue_detected ? 'unauthorized-admin' : (user.is_admin ? 'expected-admin' : '')}">
+                            <strong>${analysis.admin_issue_detected ? '⚠️' : (user.is_admin ? '✅' : '👤')} ${user.email}</strong><br>
+                            Name: ${user.first_name || 'N/A'} ${user.last_name || 'N/A'}<br>
+                            Is Admin: ${user.is_admin ? 'Yes' : 'No'}<br>
+                            Should Be Admin: ${analysis.should_be_admin ? 'Yes' : 'No'}<br>
+                            Auth Provider: ${user.auth_provider}<br>
+                            Google ID: ${user.google_id || 'N/A'}<br>
+                            Active: ${user.is_active ? 'Yes' : 'No'}<br>
+                            Created: ${user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}<br>
+                            <br>
+                            <strong>Admin Status: ${analysis.admin_status_correct ? '✅ Correct' : '⚠️ INCORRECT'}</strong>
+                        </div>
+                    `;
+                    
+                    if (analysis.admin_issue_detected) {
+                        html += `<div class="result error">🚨 ISSUE DETECTED: User ${user.email} has admin privileges but should not!</div>`;
+                    }
+                    
+                    html += `<h4>Session Data:</h4><pre>${JSON.stringify(data.session_data, null, 2)}</pre>`;
+                } else {
+                    html += `<div class="result warning">❌ No user currently authenticated</div>`;
+                    html += `<h4>Session Data:</h4><pre>${JSON.stringify(data.session_data, null, 2)}</pre>`;
+                }
+                
+                showResult(html, data.authenticated && data.admin_status_analysis?.admin_issue_detected ? 'error' : 'info');
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function searchUserByEmail(email) {
+            clearResults();
+            try {
+                const data = await fetch(`${SESSION_API_BASE}/search-user-by-email/${encodeURIComponent(email)}`).then(r => r.json());
+                
+                let html = `<h3>🔍 Deep Search: ${email}</h3>`;
+                
+                if (data.exact_match_found) {
+                    const user = data.user;
+                    const analysis = data.admin_analysis;
+                    
+                    html += `
+                        <div class="user-card ${analysis.unauthorized_admin ? 'unauthorized-admin' : (user.is_admin ? 'expected-admin' : '')}">
+                            <strong>${analysis.unauthorized_admin ? '🚨' : (user.is_admin ? '✅' : '👤')} ${user.email}</strong><br>
+                            Name: ${user.first_name || 'N/A'} ${user.last_name || 'N/A'}<br>
+                            User ID: ${user.id}<br>
+                            Is Admin: ${user.is_admin ? 'Yes' : 'No'}<br>
+                            Should Be Admin: ${analysis.should_be_admin ? 'Yes' : 'No'}<br>
+                            Auth Provider: ${user.auth_provider}<br>
+                            Google ID: ${user.google_id || 'N/A'}<br>
+                            Active: ${user.is_active ? 'Yes' : 'No'}<br>
+                            Created: ${user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}<br>
+                            Updated: ${user.updated_at ? new Date(user.updated_at).toLocaleString() : 'N/A'}<br>
+                            <br>
+                            <strong>Status: ${analysis.admin_status_correct ? '✅ Correct' : '🚨 UNAUTHORIZED ADMIN!'}</strong>
+                        </div>
+                    `;
+                    
+                    if (analysis.unauthorized_admin) {
+                        html += `<div class="result error">🚨 CRITICAL: This user has unauthorized admin privileges!</div>`;
+                    }
+                } else {
+                    html += `<div class="result warning">❌ No exact match found for ${email}</div>`;
+                    if (data.partial_matches > 0) {
+                        html += `<h4>Partial Matches (${data.partial_matches}):</h4>`;
+                        data.partial_match_users.forEach(user => {
+                            html += `
+                                <div class="user-card">
+                                    <strong>${user.email}</strong><br>
+                                    Name: ${user.first_name} ${user.last_name}<br>
+                                    Admin: ${user.is_admin ? 'Yes' : 'No'}<br>
+                                    Auth: ${user.auth_provider}
+                                </div>
+                            `;
+                        });
+                    }
+                }
+                
+                showResult(html, data.exact_match_found && data.admin_analysis?.unauthorized_admin ? 'error' : 'info');
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getAllUsersDetailed() {
+            clearResults();
+            try {
+                const data = await fetch(`${SESSION_API_BASE}/all-users-detailed`).then(r => r.json());
+                
+                let html = `<h3>👥 All Users (Detailed)</h3>`;
+                html += `<div class="stats-grid">`;
+                html += `<div class="stat-item"><div class="stat-number">${data.total_users}</div><div class="stat-label">Total Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.admin_summary.total_admins}</div><div class="stat-label">Admin Users</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.admin_summary.expected_admin_found ? '✅' : '❌'}</div><div class="stat-label">Expected Admin Found</div></div>`;
+                html += `<div class="stat-item"><div class="stat-number">${data.admin_summary.unauthorized_admins.length}</div><div class="stat-label">Unauthorized Admins</div></div>`;
+                html += `</div>`;
+                
+                if (data.admin_summary.unauthorized_admins.length > 0) {
+                    html += `<div class="result error">🚨 UNAUTHORIZED ADMINS DETECTED!</div>`;
+                    html += `<h4>Unauthorized Admin Users:</h4>`;
+                    data.admin_summary.unauthorized_admins.forEach(admin => {
+                        html += `
+                            <div class="user-card unauthorized-admin">
+                                <strong>🚨 ${admin.email}</strong><br>
+                                Name: ${admin.name}<br>
+                                Auth Provider: ${admin.auth_provider}<br>
+                                <em>This user should NOT have admin privileges!</em>
+                            </div>
+                        `;
+                    });
+                }
+                
+                html += `<h4>All Users:</h4>`;
+                data.users.forEach(user => {
+                    const isExpected = user.email === 'isky999@gmail.com';
+                    const isUnauthorizedAdmin = user.is_admin && !isExpected;
+                    const cardClass = isUnauthorizedAdmin ? 'unauthorized-admin' : (user.is_admin ? 'expected-admin' : '');
+                    
+                    html += `
+                        <div class="user-card ${cardClass}">
+                            <strong>${isUnauthorizedAdmin ? '🚨' : (user.is_admin ? '✅' : '👤')} ${user.email}</strong><br>
+                            Name: ${user.first_name || 'N/A'} ${user.last_name || 'N/A'}<br>
+                            Admin: ${user.is_admin ? 'Yes' : 'No'}<br>
+                            Auth: ${user.auth_provider}<br>
+                            Created: ${user.created_at ? new Date(user.created_at).toLocaleString() : 'N/A'}
+                        </div>
+                    `;
+                });
+                
+                showResult(html, data.admin_summary.unauthorized_admins.length > 0 ? 'error' : 'success');
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function debugAuthFlow() {
+            clearResults();
+            try {
+                const data = await fetch(`${SESSION_API_BASE}/debug-auth-flow`).then(r => r.json());
+                
+                let html = `<h3>🔧 Authentication Flow Debug</h3>`;
+                
+                html += `<h4>Session Information:</h4>`;
+                html += `<pre>${JSON.stringify(data.session_info, null, 2)}</pre>`;
+                
+                html += `<h4>Current User Information:</h4>`;
+                html += `<pre>${JSON.stringify(data.current_user_info, null, 2)}</pre>`;
+                
+                html += `<h4>Auth Headers:</h4>`;
+                html += `<pre>${JSON.stringify(data.auth_headers, null, 2)}</pre>`;
+                
+                showResult(html, 'info');
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function fixSpecificUser(email) {
+            if (!confirm(`⚠️ This will remove admin privileges from ${email}. Are you sure?`)) {
+                return;
+            }
+            
+            clearResults();
+            try {
+                const data = await fetch(`${SESSION_API_BASE}/fix-specific-user-admin/${encodeURIComponent(email)}`, {
+                    method: 'POST'
+                }).then(r => r.json());
+                
+                let html = `<h3>🔧 Fix User Admin Status: ${email}</h3>`;
+                
+                if (data.success) {
+                    html += `<div class="result success">✅ ${data.message}</div>`;
+                    html += `
+                        <div class="user-card">
+                            <strong>${data.user.email}</strong><br>
+                            Was Admin: ${data.user.was_admin ? 'Yes' : 'No'}<br>
+                            Is Admin Now: ${data.user.is_admin_now ? 'Yes' : 'No'}<br>
+                            Status: ${data.user.was_admin && !data.user.is_admin_now ? '✅ Fixed' : '➖ No change needed'}
+                        </div>
+                    `;
+                } else {
+                    html += `<div class="result error">❌ Failed to fix user</div>`;
+                }
+                
+                showResult(html, data.success ? 'success' : 'error');
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
         // Auto-load stats on page load
         window.addEventListener('load', () => {
             getDatabaseStats();

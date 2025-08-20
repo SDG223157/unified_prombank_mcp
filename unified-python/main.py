@@ -2083,7 +2083,9 @@ async def set_admin_user_endpoint(request: Request, db: Session = Depends(get_db
 
 # Include admin diagnostic endpoints
 from admin_diagnostic_api import admin_diagnostic_router
+from session_diagnostic_api import session_diagnostic_router
 app.include_router(admin_diagnostic_router)
+app.include_router(session_diagnostic_router)
 
 # Startup event
 @app.on_event("startup")
