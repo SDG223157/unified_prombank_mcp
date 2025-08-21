@@ -7,6 +7,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#3b82f6',
+                primaryTextColor: '#1f2937',
+                primaryBorderColor: '#e5e7eb',
+                lineColor: '#6b7280'
+            }
+        });
+    </script>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Enhanced Navigation with Mobile Support -->
