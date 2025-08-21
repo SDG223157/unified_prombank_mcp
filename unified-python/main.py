@@ -2267,6 +2267,113 @@ async def set_admin_user_endpoint(request: Request, db: Session = Depends(get_db
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to set admin user: {str(e)}")
 
+@app.get("/api/admin/diagnostic")
+async def admin_diagnostic(db: Session = Depends(get_db)):
+    """Diagnostic endpoint to check admin setup and database state"""
+    try:
+        # Check if is_admin column exists
+        try:
+            result = db.execute(text("DESCRIBE users"))
+            columns = [row[0] for row in result.fetchall()]
+            has_admin_column = 'is_admin' in columns
+        except Exception as e:
+            has_admin_column = False
+        
+        # Check isky999@gmail.com user
+        isky_user = db.query(User).filter(User.email == 'isky999@gmail.com').first()
+        
+        # Check admin@cfa187260.com user  
+        admin_user = db.query(User).filter(User.email == 'admin@cfa187260.com').first()
+        
+        # Get all admin users
+        admin_users = db.query(User).filter(User.is_admin == True).all() if has_admin_column else []
+        
+        return {
+            "database_info": {
+                "has_admin_column": has_admin_column,
+                "total_users": db.query(func.count(User.id)).scalar()
+            },
+            "isky_user": {
+                "exists": isky_user is not None,
+                "email": isky_user.email if isky_user else None,
+                "is_admin": isky_user.is_admin if isky_user else None,
+                "auth_provider": isky_user.auth_provider if isky_user else None
+            } if isky_user else {"exists": False},
+            "admin_user": {
+                "exists": admin_user is not None,
+                "email": admin_user.email if admin_user else None,
+                "is_admin": admin_user.is_admin if admin_user else None,
+                "auth_provider": admin_user.auth_provider if admin_user else None
+            } if admin_user else {"exists": False},
+            "all_admin_users": [
+                {
+                    "email": u.email,
+                    "name": f"{u.first_name or ''} {u.last_name or ''}".strip(),
+                    "auth_provider": u.auth_provider,
+                    "is_admin": u.is_admin
+                }
+                for u in admin_users
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Diagnostic error: {e}")
+        return {
+            "error": str(e),
+            "database_accessible": False
+        }
+
+@app.post("/api/admin/fix-isky-admin")
+async def fix_isky_admin(db: Session = Depends(get_db)):
+    """Fix admin privileges for isky999@gmail.com"""
+    admin_email = 'isky999@gmail.com'
+    
+    try:
+        # First, ensure is_admin column exists
+        try:
+            db.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT false"))
+            db.commit()
+            logger.info("✅ Added is_admin column to users table")
+        except Exception as e:
+            # Column might already exist, that's okay
+            logger.info("is_admin column already exists or couldn't be added")
+            db.rollback()
+        
+        # Check if user exists
+        existing_user = db.query(User).filter(User.email == admin_email).first()
+        
+        if not existing_user:
+            return {
+                "success": False,
+                "message": f"User {admin_email} not found. Please sign in with Google first.",
+                "action_needed": "Sign in with Google to create the user account first"
+            }
+        
+        # Update user to admin
+        existing_user.is_admin = True
+        db.commit()
+        db.refresh(existing_user)
+        
+        logger.info(f"✅ Admin privileges granted to {admin_email}")
+        
+        return {
+            "success": True,
+            "message": f"Admin privileges granted to {admin_email}",
+            "user": {
+                "id": existing_user.id,
+                "email": existing_user.email,
+                "name": f"{existing_user.first_name or ''} {existing_user.last_name or ''}".strip(),
+                "is_admin": existing_user.is_admin,
+                "auth_provider": existing_user.auth_provider
+            },
+            "next_steps": "Sign out and sign in again to see admin features"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error fixing admin user: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to fix admin user: {str(e)}")
+
 # Include admin diagnostic endpoints
 from admin_diagnostic_api import admin_diagnostic_router
 from session_diagnostic_api import session_diagnostic_router
