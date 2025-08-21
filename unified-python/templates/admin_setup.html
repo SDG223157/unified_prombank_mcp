@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" x-data="adminSetup()">
+    <div class="max-w-md w-full space-y-8">
+        <!-- Header -->
+        <div class="text-center">
+            <div class="w-20 h-20 bg-gradient-to-r from-red-500 via-pink-500 to-purple-500 rounded-2xl flex items-center justify-center text-white text-3xl mx-auto mb-6 shadow-2xl">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h2 class="text-4xl font-bold text-gray-900 mb-2">Admin Setup</h2>
+            <p class="text-gray-600">One-time setup to create admin users</p>
+        </div>
+
+        <!-- Setup Options -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
+            <!-- Create Email/Password Admin -->
+            <div>
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Create Email/Password Admin</h3>
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div class="text-sm text-gray-700">
+                        <div><strong>Email:</strong> admin@cfa187260.com</div>
+                        <div><strong>Password:</strong> Gern@828017</div>
+                    </div>
+                </div>
+                <button @click="createEmailAdmin()" :disabled="loading" 
+                        class="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-red-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50">
+                    <span x-show="!loading">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        Create Email Admin
+                    </span>
+                    <span x-show="loading">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>
+                        Creating...
+                    </span>
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-4 bg-white text-gray-500 font-medium">OR</span>
+                </div>
+            </div>
+
+            <!-- Set Google User as Admin -->
+            <div>
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Set Google User as Admin</h3>
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div class="text-sm text-gray-700">
+                        <div><strong>Email:</strong> isky999@gmail.com</div>
+                        <div><strong>Note:</strong> User must sign in with Google first</div>
+                    </div>
+                </div>
+                <button @click="setGoogleAdmin()" :disabled="loading" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50">
+                    <span x-show="!loading">
+                        <i class="fab fa-google mr-2"></i>
+                        Set Google Admin
+                    </span>
+                    <span x-show="loading">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>
+                        Setting...
+                    </span>
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div x-show="result" class="mt-6">
+                <div :class="result.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'" 
+                     class="p-4 border rounded-xl">
+                    <div class="flex items-center">
+                        <i :class="result.success ? 'fas fa-check-circle text-green-500' : 'fas fa-exclamation-triangle text-red-500'" class="mr-2"></i>
+                        <span class="text-sm" x-text="result.message"></span>
+                    </div>
+                    <div x-show="result.success && result.login_info" class="mt-3 text-xs">
+                        <div><strong>Login with:</strong></div>
+                        <div>Email: <span x-text="result.login_info?.email"></span></div>
+                        <div>Password: <span x-text="result.login_info?.password"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnostic -->
+            <div class="border-t border-gray-200 pt-6">
+                <button @click="runDiagnostic()" :disabled="loading" 
+                        class="w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-xl font-medium hover:bg-gray-200 transition-colors disabled:opacity-50">
+                    <i class="fas fa-search mr-2"></i>
+                    Run Diagnostic
+                </button>
+                
+                <div x-show="diagnostic" class="mt-4 bg-gray-50 rounded-xl p-4">
+                    <pre class="text-xs text-gray-600 whitespace-pre-wrap" x-text="JSON.stringify(diagnostic, null, 2)"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back to Home -->
+        <div class="text-center">
+            <a href="/" class="text-indigo-600 font-semibold hover:text-indigo-700">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Homepage
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function adminSetup() {
+    return {
+        loading: false,
+        result: null,
+        diagnostic: null,
+        
+        async createEmailAdmin() {
+            this.loading = true;
+            this.result = null;
+            
+            try {
+                const response = await fetch('/api/admin/create-admin-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                this.result = data;
+                
+                if (data.success) {
+                    setTimeout(() => {
+                        alert('Admin user created! You can now login with admin@cfa187260.com');
+                    }, 1000);
+                }
+            } catch (error) {
+                this.result = {
+                    success: false,
+                    message: 'Network error: ' + error.message
+                };
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async setGoogleAdmin() {
+            this.loading = true;
+            this.result = null;
+            
+            try {
+                const response = await fetch('/api/admin/fix-isky-admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                this.result = data;
+                
+                if (data.success) {
+                    setTimeout(() => {
+                        alert('Google admin set! isky999@gmail.com now has admin privileges.');
+                    }, 1000);
+                }
+            } catch (error) {
+                this.result = {
+                    success: false,
+                    message: 'Network error: ' + error.message
+                };
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async runDiagnostic() {
+            this.loading = true;
+            
+            try {
+                const response = await fetch('/api/admin/diagnostic');
+                this.diagnostic = await response.json();
+            } catch (error) {
+                this.diagnostic = { error: 'Failed to run diagnostic: ' + error.message };
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

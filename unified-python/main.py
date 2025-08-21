@@ -1933,6 +1933,14 @@ async def serve_register_page(request: Request):
         "title": "Register - Prompt House Premium"
     })
 
+@app.get("/admin/setup", response_class=HTMLResponse)
+async def serve_admin_setup_page(request: Request):
+    """Serve the admin setup page"""
+    return templates.TemplateResponse("admin_setup.html", {
+        "request": request,
+        "title": "Admin Setup - Prompt House Premium"
+    })
+
 # Admin Routes
 @app.get("/admin", response_class=HTMLResponse)
 async def serve_admin_dashboard(request: Request, current_user: User = Depends(require_auth)):
