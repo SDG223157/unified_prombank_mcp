@@ -63,6 +63,47 @@ class PromptHouseMCPServer {
             },
           },
           {
+            name: 'search_articles',
+            description: 'Search for articles by title, content, category, tags, or source prompt',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'Search query to find articles',
+                },
+                category: {
+                  type: 'string',
+                  description: 'Filter by category (optional)',
+                },
+                tags: {
+                  type: 'string',
+                  description: 'Filter by tags (comma-separated, optional)',
+                },
+                promptTitle: {
+                  type: 'string',
+                  description: 'Filter by source prompt title (optional)',
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of results (default: 10)',
+                  default: 10,
+                },
+                sortBy: {
+                  type: 'string',
+                  description: 'Sort by field: title, category, createdAt, wordCount (default: createdAt)',
+                  default: 'createdAt',
+                },
+                sortOrder: {
+                  type: 'string',
+                  description: 'Sort order: asc or desc (default: desc)',
+                  default: 'desc',
+                },
+              },
+              required: ['query'],
+            },
+          },
+          {
             name: 'get_prompt',
             description: 'Get a specific prompt by ID with full details',
             inputSchema: {
@@ -214,6 +255,8 @@ class PromptHouseMCPServer {
         switch (name) {
           case 'search_prompts':
             return await this.searchPrompts(args);
+          case 'search_articles':
+            return await this.searchArticles(args);
           case 'get_prompt':
             return await this.getPrompt(args);
           case 'create_prompt':
@@ -296,6 +339,83 @@ class PromptHouseMCPServer {
       author: `${prompt.user.firstName || ''} ${prompt.user.lastName || ''}`.trim() || prompt.user.email,
       updatedAt: prompt.updatedAt,
       preview: prompt.content.substring(0, 200) + (prompt.content.length > 200 ? '...' : ''),
+    }));
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ 
+            results: results,
+            count: results.length,
+            query: query 
+          }, null, 2),
+        },
+      ],
+    };
+  }
+
+  async searchArticles(args) {
+    const { query, category, tags, promptTitle, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = args;
+
+    const where = {
+      OR: [
+        { title: { contains: query } },
+        { content: { contains: query } },
+      ],
+    };
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (tags) {
+      const tagArray = tags.split(',').map(tag => tag.trim());
+      where.tags = {
+        path: '$',
+        array_contains: tagArray
+      };
+    }
+
+    if (promptTitle) {
+      where.OR.push({ promptTitle: { contains: promptTitle } });
+    }
+
+    const articles = await prisma.article.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        prompt: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      },
+      orderBy: { [sortBy]: sortOrder },
+      take: limit,
+    });
+
+    const results = articles.map(article => ({
+      id: article.id,
+      title: article.title,
+      category: article.category,
+      tags: article.tags,
+      wordCount: article.wordCount,
+      charCount: article.charCount,
+      promptId: article.promptId,
+      promptTitle: article.promptTitle,
+      author: `${article.user.firstName || ''} ${article.user.lastName || ''}`.trim() || article.user.email,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      preview: article.content.substring(0, 300) + (article.content.length > 300 ? '...' : ''),
     }));
 
     return {
