@@ -1411,10 +1411,15 @@ async def get_articles(
         articles = query.offset(offset).limit(limit).all()
         
         # Get unique categories for filtering
-        categories_query = db.query(Article.category).filter(
-            Article.user_id == current_user.id,
-            Article.category.isnot(None)
-        ).distinct()
+        if current_user.is_admin:
+            categories_query = db.query(Article.category).filter(
+                Article.category.isnot(None)
+            ).distinct()
+        else:
+            categories_query = db.query(Article.category).filter(
+                Article.user_id == current_user.id,
+                Article.category.isnot(None)
+            ).distinct()
         categories = [cat[0] for cat in categories_query.all()]
         
         # Format response
