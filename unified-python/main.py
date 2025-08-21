@@ -1437,6 +1437,8 @@ async def get_articles(
                 "title": article.title,
                 "category": article.category,
                 "tags": article.tags,
+                "prompt_id": article.prompt_id,
+                "prompt_title": article.prompt_title,
                 "word_count": article.word_count,
                 "char_count": article.char_count,
                 "created_at": article.created_at.isoformat() if article.created_at else None,
@@ -1525,15 +1527,22 @@ async def create_article(
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        # Verify prompt exists and belongs to user if prompt_id is provided
+        # Verify prompt exists and get prompt title if prompt_id is provided
+        prompt_title = None
         if article_data.prompt_id:
-            prompt = db.query(Prompt).filter(
-                Prompt.id == article_data.prompt_id,
-                Prompt.user_id == current_user.id
-            ).first()
+            # Admin users can use any prompt, regular users only their own
+            if current_user.is_admin:
+                prompt = db.query(Prompt).filter(Prompt.id == article_data.prompt_id).first()
+            else:
+                prompt = db.query(Prompt).filter(
+                    Prompt.id == article_data.prompt_id,
+                    Prompt.user_id == current_user.id
+                ).first()
             
             if not prompt:
-                raise HTTPException(status_code=400, detail="Prompt not found or does not belong to user")
+                raise HTTPException(status_code=400, detail="Prompt not found or access denied")
+            
+            prompt_title = prompt.title
         
         # Calculate word and character counts
         word_count, char_count = calculate_counts(article_data.content)
@@ -1546,6 +1555,7 @@ async def create_article(
             category=article_data.category,
             tags=article_data.tags,
             prompt_id=article_data.prompt_id,
+            prompt_title=prompt_title,
             user_id=current_user.id,
             word_count=word_count,
             char_count=char_count,
@@ -1743,6 +1753,62 @@ async def get_article_stats(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting article stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to get article statistics")
+
+@app.post("/api/migrate-articles/add-prompt-title")
+async def migrate_add_prompt_title_column(db: Session = Depends(get_db)):
+    """Add prompt_title column to articles table and populate existing data"""
+    try:
+        # Check if column already exists
+        try:
+            result = db.execute(text("""
+                SELECT COLUMN_NAME 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'articles' 
+                AND COLUMN_NAME = 'prompt_title'
+            """)).fetchone()
+            
+            if result:
+                logger.info("✅ prompt_title column already exists")
+                return {"success": True, "message": "Column already exists", "already_migrated": True}
+        except Exception as e:
+            logger.info(f"Column check failed, proceeding with migration: {e}")
+        
+        # Add the prompt_title column
+        logger.info("📝 Adding prompt_title column to articles table...")
+        db.execute(text("""
+            ALTER TABLE articles 
+            ADD COLUMN prompt_title VARCHAR(500) NULL 
+            COMMENT 'Title of the source prompt for easy identification'
+        """))
+        
+        logger.info("✅ Column added successfully")
+        
+        # Populate existing articles with prompt titles
+        logger.info("🔄 Populating existing articles with prompt titles...")
+        
+        articles_with_prompts = db.query(Article).filter(Article.prompt_id.isnot(None)).all()
+        
+        updated_count = 0
+        for article in articles_with_prompts:
+            prompt = db.query(Prompt).filter(Prompt.id == article.prompt_id).first()
+            if prompt:
+                article.prompt_title = prompt.title
+                updated_count += 1
+                logger.info(f"  📄 Updated: '{article.title}' ← '{prompt.title}'")
+        
+        db.commit()
+        logger.info(f"✅ Migration completed! Updated {updated_count} articles")
+        
+        return {
+            "success": True,
+            "message": f"Added prompt_title column and updated {updated_count} articles",
+            "updated_articles": updated_count
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Migration failed: {e}")
+        db.rollback()
+        return {"success": False, "error": str(e)}
 
 @app.post("/api/migrate-articles/add-articles-table")
 async def migrate_articles_table(db: Session = Depends(get_db)):

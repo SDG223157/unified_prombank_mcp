@@ -31,6 +31,7 @@ interface Article {
   category?: string;
   tags: string[];
   promptId?: string;
+  promptTitle?: string;
   userId: string;
   wordCount?: number;
   charCount?: number;
@@ -818,7 +819,7 @@ class PromptHousePremiumServer {
         content: [
           {
             type: 'text',
-            text: `✅ **Article Created Successfully!**\n\n📄 **${data.title}**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Created: ${new Date(data.createdAt).toLocaleDateString()}\n${data.promptId ? `• Source Prompt: ${data.prompt?.title || data.promptId}` : ''}\n\n**Content Preview:**\n${data.content.substring(0, 200)}${data.content.length > 200 ? '...' : ''}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+            text: `✅ **Article Created Successfully!**\n\n📄 **${data.title}**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Created: ${new Date(data.createdAt).toLocaleDateString()}\n${data.promptId ? `• Source Prompt: ${data.promptTitle || data.prompt?.title || data.promptId}` : ''}\n\n**Content Preview:**\n${data.content.substring(0, 200)}${data.content.length > 200 ? '...' : ''}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
           }
         ]
       };

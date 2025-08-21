@@ -89,6 +89,7 @@ class Article(Base):
     category = Column(String(255), nullable=True)
     tags = Column(JSON, default=list)
     prompt_id = Column(String(255), nullable=True)  # Optional reference to source prompt
+    prompt_title = Column(String(500), nullable=True)  # Title of the source prompt for easy identification
     user_id = Column(String(255), nullable=False)
     word_count = Column(Integer, nullable=True)
     char_count = Column(Integer, nullable=True)
