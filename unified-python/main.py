@@ -1380,8 +1380,11 @@ async def get_articles(
         if sort_order not in ["asc", "desc"]:
             sort_order = "desc"
         
-        # Build query
-        query = db.query(Article).filter(Article.user_id == current_user.id)
+        # Build query - Admin users can see ALL articles, regular users see only their own
+        if current_user.is_admin:
+            query = db.query(Article)
+        else:
+            query = db.query(Article).filter(Article.user_id == current_user.id)
         
         # Apply filters
         if category:
@@ -1461,10 +1464,14 @@ async def get_article(article_id: str, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     try:
-        article = db.query(Article).filter(
-            Article.id == article_id,
-            Article.user_id == current_user.id
-        ).first()
+        # Admin users can access ANY article, regular users only their own
+        if current_user.is_admin:
+            article = db.query(Article).filter(Article.id == article_id).first()
+        else:
+            article = db.query(Article).filter(
+                Article.id == article_id,
+                Article.user_id == current_user.id
+            ).first()
         
         if not article:
             raise HTTPException(status_code=404, detail="Article not found")
