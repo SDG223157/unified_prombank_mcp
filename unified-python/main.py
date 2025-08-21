@@ -1916,6 +1916,23 @@ async def serve_search_features(request: Request):
         "title": "Smart Search - Prompt House Premium"
     })
 
+# Authentication Pages
+@app.get("/login", response_class=HTMLResponse)
+async def serve_login_page(request: Request):
+    """Serve the login page"""
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "title": "Sign In - Prompt House Premium"
+    })
+
+@app.get("/register", response_class=HTMLResponse)
+async def serve_register_page(request: Request):
+    """Serve the register page"""
+    return templates.TemplateResponse("register.html", {
+        "request": request,
+        "title": "Register - Prompt House Premium"
+    })
+
 # Admin Routes
 @app.get("/admin", response_class=HTMLResponse)
 async def serve_admin_dashboard(request: Request, current_user: User = Depends(require_auth)):
