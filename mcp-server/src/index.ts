@@ -152,6 +152,50 @@ class PromptHousePremiumServer {
             }
           },
           {
+            name: 'search_prompts',
+            description: 'Search prompts by title, description, content, or tags with advanced filtering',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'Search query to match against title, description, content, or tags'
+                },
+                category: {
+                  type: 'string',
+                  description: 'Filter by category (optional)'
+                },
+                tags: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Filter by specific tags (optional)'
+                },
+                isPublic: {
+                  type: 'boolean',
+                  description: 'Filter by public/private status (optional)'
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Maximum number of results to return (default: 20)',
+                  default: 20
+                },
+                sortBy: {
+                  type: 'string',
+                  description: 'Sort by field: title, category, createdAt (default: createdAt)',
+                  enum: ['title', 'category', 'createdAt'],
+                  default: 'createdAt'
+                },
+                sortOrder: {
+                  type: 'string',
+                  description: 'Sort order: asc or desc (default: desc)',
+                  enum: ['asc', 'desc'],
+                  default: 'desc'
+                }
+              },
+              required: ['query']
+            }
+          },
+          {
             name: 'get_prompt',
             description: 'Get a specific prompt by ID',
             inputSchema: {
@@ -486,6 +530,9 @@ class PromptHousePremiumServer {
           case 'get_prompt_list':
             return await this.handleGetPromptList(args);
           
+          case 'search_prompts':
+            return await this.handleSearchPrompts(args);
+          
           case 'get_prompt':
             return await this.handleGetPrompt(args);
           
@@ -557,6 +604,72 @@ class PromptHousePremiumServer {
         }
       ]
     };
+  }
+
+  private async handleSearchPrompts(args: any) {
+    try {
+      const params = new URLSearchParams();
+      
+      // Add search query
+      if (args.query) params.append('search', args.query);
+      
+      // Add filters
+      if (args.category) params.append('category', args.category);
+      if (args.tags && args.tags.length > 0) params.append('tags', args.tags.join(','));
+      if (args.isPublic !== undefined) params.append('isPublic', args.isPublic.toString());
+      
+      // Add pagination and sorting
+      if (args.limit) params.append('limit', args.limit.toString());
+      if (args.sortBy) params.append('sortBy', args.sortBy);
+      if (args.sortOrder) params.append('sortOrder', args.sortOrder);
+
+      const data = await this.makeApiCall(`/prompts?${params.toString()}`);
+      
+      // Format search results for better readability
+      const prompts = data.prompts || [];
+      const searchSummary = `🔍 **Search Results for "${args.query}"**\n\n` +
+        `Found ${prompts.length} prompts matching your search criteria.\n\n`;
+      
+      let resultsText = searchSummary;
+      
+      if (prompts.length === 0) {
+        resultsText += `No prompts found matching "${args.query}".`;
+        if (args.category || args.tags || args.isPublic !== undefined) {
+          resultsText += `\n\nTry:\n- Removing filters\n- Using broader search terms\n- Checking spelling`;
+        }
+      } else {
+        resultsText += prompts.map((prompt: any, index: number) => {
+          const tags = prompt.tags && prompt.tags.length > 0 ? ` | Tags: ${prompt.tags.join(', ')}` : '';
+          const category = prompt.category ? ` | Category: ${prompt.category}` : '';
+          const visibility = prompt.is_public ? ' | Public' : ' | Private';
+          
+          return `**${index + 1}. ${prompt.title}**\n` +
+            `ID: ${prompt.id}${category}${visibility}${tags}\n` +
+            `${prompt.description || 'No description'}\n` +
+            `Created: ${new Date(prompt.created_at).toLocaleDateString()}\n`;
+        }).join('\n');
+      }
+      
+      resultsText += `\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`;
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: resultsText
+          }
+        ]
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Search failed: ${error.response?.data?.message || error.message}`
+          }
+        ]
+      };
+    }
   }
 
   private async handleGetPrompt(args: any) {
