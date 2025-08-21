@@ -181,9 +181,9 @@
                                     <i class="fas fa-file-word mr-1"></i>
                                     <span x-text="(article.word_count || 0).toLocaleString()"></span> words
                                 </span>
-                                <span x-show="article.prompt">
+                                <span x-show="article.prompt_title || article.prompt">
                                     <i class="fas fa-link mr-1"></i>
-                                    From: <span x-text="article.prompt?.title || 'Unknown'"></span>
+                                    From: <span x-text="article.prompt_title || article.prompt?.title || 'Unknown'"></span>
                                 </span>
                             </div>
                             <div class="flex flex-wrap gap-1 mb-3">
@@ -245,8 +245,8 @@
                                 <span class="text-sm text-gray-900" x-text="formatDate(article.created_at)"></span>
                             </td>
                             <td class="px-6 py-4">
-                                <span x-show="article.prompt" class="text-sm text-blue-600" x-text="article.prompt?.title || 'Unknown'"></span>
-                                <span x-show="!article.prompt" class="text-sm text-gray-500">Original</span>
+                                <span x-show="article.prompt_title || article.prompt" class="text-sm text-blue-600" x-text="article.prompt_title || article.prompt?.title || 'Unknown'"></span>
+                                <span x-show="!article.prompt_title && !article.prompt" class="text-sm text-gray-500">Original</span>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex space-x-2">

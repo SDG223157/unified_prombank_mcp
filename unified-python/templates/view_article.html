@@ -61,9 +61,12 @@
                         <label class="text-sm font-medium text-gray-500">Character Count</label>
                         <p class="text-gray-900" x-text="(article.char_count || 0).toLocaleString()"></p>
                     </div>
-                    <div x-show="article.prompt">
+                    <div x-show="article.prompt_title || article.prompt_id || article.prompt">
                         <label class="text-sm font-medium text-gray-500">Source Prompt</label>
-                        <p class="text-blue-600" x-text="article.prompt?.title || 'Unknown Prompt'"></p>
+                        <div>
+                            <p class="text-blue-600" x-text="article.prompt_title || article.prompt?.title || 'Unknown Prompt'"></p>
+                            <p class="text-xs text-gray-400" x-show="article.prompt_id" x-text="'ID: ' + article.prompt_id"></p>
+                        </div>
                     </div>
                 </div>
             </div>
