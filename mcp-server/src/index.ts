@@ -54,7 +54,7 @@ interface CreateArticleRequest {
   content: string;
   category?: string;
   tags?: string[];
-  promptId?: string;
+  prompt_id?: string;
   metadata?: any;
 }
 
@@ -809,7 +809,7 @@ class PromptHousePremiumServer {
         content: args.content,
         category: args.category,
         tags: args.tags || [],
-        promptId: args.promptId,
+        prompt_id: args.promptId,
         metadata: args.metadata || {}
       };
 
@@ -819,7 +819,7 @@ class PromptHousePremiumServer {
         content: [
           {
             type: 'text',
-            text: `✅ **Article Created Successfully!**\n\n📄 **${data.title}**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Created: ${new Date(data.createdAt).toLocaleDateString()}\n${data.promptId ? `• Source Prompt: ${data.promptTitle || data.prompt?.title || data.promptId}` : ''}\n\n**Content Preview:**\n${data.content.substring(0, 200)}${data.content.length > 200 ? '...' : ''}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
+            text: `✅ **Article Created Successfully!**\n\n📄 **${data.title}**\n• ID: ${data.id}\n• Category: ${data.category || 'Uncategorized'}\n• Tags: ${data.tags.join(', ') || 'None'}\n• Words: ${data.wordCount || 0}\n• Created: ${new Date(data.createdAt).toLocaleDateString()}\n${data.prompt_id ? `• Source Prompt: ${data.prompt_title || data.prompt?.title || data.prompt_id}` : ''}\n\n**Content Preview:**\n${data.content.substring(0, 200)}${data.content.length > 200 ? '...' : ''}\n\n---\n\n**Raw Data:**\n${JSON.stringify(data, null, 2)}`
           }
         ]
       };
