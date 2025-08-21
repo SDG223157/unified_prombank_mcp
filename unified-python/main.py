@@ -252,9 +252,15 @@ async def get_prompts(
         
         # Build query with proper access control
         # Users can see: public prompts OR their own prompts (public or private)
-        query = db.query(Prompt).filter(
-            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
-        )
+        # Admins can see ALL prompts
+        if current_user.is_admin:
+            # Admin users see all prompts
+            query = db.query(Prompt)
+        else:
+            # Regular users see public prompts OR their own prompts
+            query = db.query(Prompt).filter(
+                (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+            )
         
         # Apply sorting
         sort_column = valid_sort_fields[sortBy]
@@ -329,10 +335,14 @@ async def get_prompt(prompt_id: str, request: Request, db: Session = Depends(get
     
     try:
         # Find prompt with proper access control
-        prompt = db.query(Prompt).filter(
-            Prompt.id == prompt_id,
-            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
-        ).first()
+        # Admins can access ANY prompt, regular users can only access public or their own
+        if current_user.is_admin:
+            prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+        else:
+            prompt = db.query(Prompt).filter(
+                Prompt.id == prompt_id,
+                (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+            ).first()
         
         if not prompt:
             raise HTTPException(status_code=404, detail="Prompt not found or access denied")
@@ -916,9 +926,15 @@ async def mcp_get_prompts(request: Request, db: Session = Depends(get_db)):
     
     try:
         # Get prompts accessible to this user (public + user's own)
-        prompts = db.query(Prompt).filter(
-            (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
-        ).limit(50).all()
+        # Admins can see ALL prompts
+        if current_user.is_admin:
+            # Admin users see all prompts
+            prompts = db.query(Prompt).limit(50).all()
+        else:
+            # Regular users see public prompts OR their own prompts
+            prompts = db.query(Prompt).filter(
+                (Prompt.is_public == True) | (Prompt.user_id == current_user.id)
+            ).limit(50).all()
         
         return {
             "prompts": [
