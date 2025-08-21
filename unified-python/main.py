@@ -2157,6 +2157,81 @@ async def get_all_articles_admin(current_user: User = Depends(require_auth), db:
         logger.error(f"Error getting articles: {e}")
         raise HTTPException(status_code=500, detail="Failed to get articles")
 
+@app.post("/api/admin/create-admin-user")
+async def create_admin_user_endpoint(request: Request, db: Session = Depends(get_db)):
+    """Create admin user with email and password - one-time setup endpoint"""
+    admin_email = 'admin@cfa187260.com'
+    admin_password = 'Gern@828017'
+    
+    try:
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.email == admin_email).first()
+        
+        if existing_user:
+            # Update existing user to admin
+            existing_user.is_admin = True
+            db.commit()
+            db.refresh(existing_user)
+            
+            logger.info(f"✅ Admin privileges granted to existing user {admin_email}")
+            return {
+                "success": True,
+                "message": f"Admin privileges granted to existing user {admin_email}",
+                "user": {
+                    "id": existing_user.id,
+                    "email": existing_user.email,
+                    "is_admin": existing_user.is_admin
+                }
+            }
+        
+        # Import password hashing function
+        import bcrypt
+        
+        # Hash the password
+        password_hash = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        # Create new admin user
+        new_admin = User(
+            id=str(uuid.uuid4()),
+            email=admin_email,
+            password_hash=password_hash,
+            first_name="Admin",
+            last_name="User",
+            auth_provider="local",
+            subscription_tier="premium",
+            is_active=True,
+            is_admin=True
+        )
+        
+        db.add(new_admin)
+        db.commit()
+        db.refresh(new_admin)
+        
+        logger.info(f"✅ Admin user created successfully: {admin_email}")
+        
+        return {
+            "success": True,
+            "message": f"Admin user created successfully: {admin_email}",
+            "user": {
+                "id": new_admin.id,
+                "email": new_admin.email,
+                "first_name": new_admin.first_name,
+                "last_name": new_admin.last_name,
+                "is_admin": new_admin.is_admin,
+                "auth_provider": new_admin.auth_provider
+            },
+            "login_info": {
+                "email": admin_email,
+                "password": "Gern@828017",
+                "note": "Use these credentials to sign in"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error creating admin user: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create admin user: {str(e)}")
+
 @app.post("/api/admin/set-admin-user")
 async def set_admin_user_endpoint(request: Request, db: Session = Depends(get_db)):
     """Set isky999@gmail.com as admin user - one-time setup endpoint"""
