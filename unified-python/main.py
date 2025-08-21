@@ -1810,6 +1810,56 @@ async def migrate_add_prompt_title_column(db: Session = Depends(get_db)):
         db.rollback()
         return {"success": False, "error": str(e)}
 
+@app.post("/api/migrate-articles/update-prompt-info/{article_id}")
+async def update_article_prompt_info(article_id: str, request: Request, db: Session = Depends(get_db)):
+    """Update prompt_id and prompt_title for an existing article"""
+    current_user = get_current_user_or_token(request, db)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    try:
+        data = await request.json()
+        prompt_id = data.get('prompt_id')
+        
+        if not prompt_id:
+            raise HTTPException(status_code=400, detail="prompt_id required")
+        
+        # Find the article
+        if current_user.is_admin:
+            article = db.query(Article).filter(Article.id == article_id).first()
+        else:
+            article = db.query(Article).filter(
+                Article.id == article_id,
+                Article.user_id == current_user.id
+            ).first()
+        
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Get the prompt title
+        prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+        if not prompt:
+            raise HTTPException(status_code=400, detail="Prompt not found")
+        
+        # Update the article
+        article.prompt_id = prompt_id
+        article.prompt_title = prompt.title
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Updated article with prompt: {prompt.title}",
+            "article_id": article_id,
+            "prompt_id": prompt_id,
+            "prompt_title": prompt.title
+        }
+        
+    except Exception as e:
+        logger.error(f"Error updating article prompt info: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to update article")
+
 @app.post("/api/migrate-articles/add-articles-table")
 async def migrate_articles_table(db: Session = Depends(get_db)):
     """Create articles table - migration endpoint"""
