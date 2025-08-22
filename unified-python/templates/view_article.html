@@ -307,33 +307,44 @@ function viewArticleData(articleId) {
                 currentIndex++;
             }
             
-            // Generate HTML table
-            let tableHtml = '<div class="overflow-x-auto my-6"><table class="min-w-full bg-white border border-gray-200 rounded-lg">';
+            // Generate enhanced HTML table with professional styling
+            let tableHtml = '<div class="overflow-x-auto my-8 shadow-lg rounded-xl border border-gray-200">';
+            tableHtml += '<table class="min-w-full bg-white divide-y divide-gray-200">';
             
-            // Header
-            tableHtml += '<thead class="bg-gray-50"><tr>';
+            // Enhanced Header with gradient background
+            tableHtml += '<thead class="bg-gradient-to-r from-gray-50 to-gray-100">';
+            tableHtml += '<tr>';
             headers.forEach((header, index) => {
                 const alignment = alignments[index] || 'left';
                 const textAlign = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
-                tableHtml += `<th class="px-4 py-3 border-b border-gray-200 font-semibold text-gray-700 ${textAlign}">${header}</th>`;
+                tableHtml += `<th class="px-6 py-4 ${textAlign} text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 last:border-r-0">${header}</th>`;
             });
             tableHtml += '</tr></thead>';
             
-            // Body
+            // Enhanced Body with better styling
             if (rows.length > 0) {
-                tableHtml += '<tbody>';
+                tableHtml += '<tbody class="bg-white divide-y divide-gray-200">';
                 rows.forEach((row, rowIndex) => {
-                    const bgClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                    tableHtml += `<tr class="${bgClass}">`;
+                    const hoverClass = 'hover:bg-blue-50 transition-colors duration-150';
+                    const bgClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-25';
+                    tableHtml += `<tr class="${bgClass} ${hoverClass}">`;
                     row.forEach((cell, cellIndex) => {
                         const alignment = alignments[cellIndex] || 'left';
                         const textAlign = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
-                        // Process basic markdown in cells
+                        
+                        // Enhanced cell processing with better formatting
                         let processedCell = cell
-                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                            .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-xs">$1</code>');
-                        tableHtml += `<td class="px-4 py-3 border-b border-gray-200 text-sm ${textAlign}">${processedCell}</td>`;
+                            .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                            .replace(/\*(.+?)\*/g, '<em class="italic text-gray-700">$1</em>')
+                            .replace(/`(.+?)`/g, '<code class="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs font-mono">$1</code>')
+                            .replace(/✅/g, '<span class="text-green-600">✅</span>')
+                            .replace(/❌/g, '<span class="text-red-600">❌</span>')
+                            .replace(/⚠️/g, '<span class="text-yellow-600">⚠️</span>')
+                            .replace(/📊/g, '<span class="text-blue-600">📊</span>')
+                            .replace(/📈/g, '<span class="text-green-600">📈</span>')
+                            .replace(/📉/g, '<span class="text-red-600">📉</span>');
+                        
+                        tableHtml += `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${textAlign} border-r border-gray-100 last:border-r-0">${processedCell}</td>`;
                     });
                     tableHtml += '</tr>';
                 });
