@@ -230,6 +230,9 @@ function createArticleData() {
             // Handle code blocks (non-mermaid)
             html = html.replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<pre class="bg-gray-800 text-gray-100 p-3 rounded overflow-x-auto my-3 text-sm"><code>$2</code></pre>');
             
+            // Handle markdown tables
+            html = this.renderTables(html);
+            
             // Basic markdown formatting
             html = html
                 .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mb-3">$1</h1>')
@@ -244,6 +247,101 @@ function createArticleData() {
                 .concat('</p>');
                 
             return html;
+        },
+        
+        renderTables(content) {
+            // Split content by lines and process table blocks
+            const lines = content.split('\n');
+            let result = [];
+            let i = 0;
+            
+            while (i < lines.length) {
+                const line = lines[i];
+                
+                // Check if this line looks like a table header (contains |)
+                if (line.includes('|') && line.trim().startsWith('|') && line.trim().endsWith('|')) {
+                    // Look ahead to see if next line is separator (|---|---|)
+                    if (i + 1 < lines.length && lines[i + 1].includes('|') && lines[i + 1].includes('-')) {
+                        // Found a table! Process it
+                        const tableResult = this.processTable(lines, i);
+                        result.push(tableResult.html);
+                        i = tableResult.nextIndex;
+                        continue;
+                    }
+                }
+                
+                result.push(line);
+                i++;
+            }
+            
+            return result.join('\n');
+        },
+        
+        processTable(lines, startIndex) {
+            const headerLine = lines[startIndex];
+            const separatorLine = lines[startIndex + 1];
+            
+            // Parse header
+            const headers = headerLine.split('|').slice(1, -1).map(h => h.trim());
+            
+            // Parse alignment from separator line
+            const alignments = separatorLine.split('|').slice(1, -1).map(sep => {
+                const trimmed = sep.trim();
+                if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
+                if (trimmed.endsWith(':')) return 'right';
+                return 'left';
+            });
+            
+            // Parse data rows
+            const rows = [];
+            let currentIndex = startIndex + 2;
+            
+            while (currentIndex < lines.length && lines[currentIndex].includes('|') && 
+                   lines[currentIndex].trim().startsWith('|') && lines[currentIndex].trim().endsWith('|')) {
+                const cells = lines[currentIndex].split('|').slice(1, -1).map(c => c.trim());
+                rows.push(cells);
+                currentIndex++;
+            }
+            
+            // Generate HTML table (smaller for preview)
+            let tableHtml = '<div class="overflow-x-auto my-4"><table class="min-w-full bg-white border border-gray-200 rounded text-sm">';
+            
+            // Header
+            tableHtml += '<thead class="bg-gray-100"><tr>';
+            headers.forEach((header, index) => {
+                const alignment = alignments[index] || 'left';
+                const textAlign = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
+                tableHtml += `<th class="px-3 py-2 border-b border-gray-200 font-medium text-gray-700 ${textAlign}">${header}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+            
+            // Body
+            if (rows.length > 0) {
+                tableHtml += '<tbody>';
+                rows.forEach((row, rowIndex) => {
+                    const bgClass = rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    tableHtml += `<tr class="${bgClass}">`;
+                    row.forEach((cell, cellIndex) => {
+                        const alignment = alignments[cellIndex] || 'left';
+                        const textAlign = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
+                        // Process basic markdown in cells
+                        let processedCell = cell
+                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                            .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-xs">$1</code>');
+                        tableHtml += `<td class="px-3 py-2 border-b border-gray-200 ${textAlign}">${processedCell}</td>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+                tableHtml += '</tbody>';
+            }
+            
+            tableHtml += '</table></div>';
+            
+            return {
+                html: tableHtml,
+                nextIndex: currentIndex
+            };
         }
     };
 }
